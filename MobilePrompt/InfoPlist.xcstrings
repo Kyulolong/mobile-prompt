@@ -1,0 +1,36 @@
+{
+  "sourceLanguage" : "ko",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "localizations" : {
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "보이스 프롬프터" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Voice Prompter" } }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "localizations" : {
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "셀피 화면을 보면서 대본을 읽고 영상을 녹화하는 데 카메라를 사용해요." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The camera shows your selfie view while you read, and records your video." } }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "localizations" : {
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "목소리를 듣고 대본을 따라가고, 녹화 영상에 소리를 담는 데 마이크를 사용해요." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The microphone follows your voice through the script and records audio for your video." } }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "localizations" : {
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "지금 대본의 어디를 읽고 있는지 실시간으로 따라가기 위해 음성인식을 사용해요." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Speech recognition tracks where in the script you are reading in real time." } }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "localizations" : {
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "녹화한 영상을 갤러리에 저장해요." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recorded videos are saved to your photo library." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
