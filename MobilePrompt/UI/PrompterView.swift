@@ -106,6 +106,8 @@ struct PrompterView: View {
 
             if vm.permissionState == .denied {
                 permissionOverlay
+            } else if vm.speechStatus == .dictationDisabled {
+                dictationOverlay
             }
         }
         .statusBarHidden()
@@ -225,6 +227,7 @@ struct PrompterView: View {
         case .idle: return AppSettings.tr("대기")
         case .denied: return AppSettings.tr("음성인식 권한 없음")
         case .unavailable: return AppSettings.tr("음성인식 사용 불가")
+        case .dictationDisabled: return AppSettings.tr("받아쓰기가 꺼져 있어요")
         case .error(let m): return m
         }
     }
@@ -342,6 +345,29 @@ struct PrompterView: View {
             .padding(.horizontal, 34)
         }
         .padding(.bottom, 16)
+    }
+
+    /// Dictation switched off system-wide. Settings can't be deep-linked to
+    /// the Keyboard pane, so spell the path out and offer the auto-scroll
+    /// fallback so the reader isn't stuck.
+    private var dictationOverlay: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "waveform.slash")
+                .font(.system(size: 44))
+            Text("받아쓰기가 꺼져 있어요")
+                .font(.headline)
+            Text("설정 > 일반 > 키보드 > '받아쓰기 활성화'를 켜면\n목소리를 따라갈 수 있어요")
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Button("자동 스크롤로 전환") {
+                settings.voiceMode = false
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .foregroundStyle(.white)
+        .padding(28)
+        .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20))
     }
 
     private var permissionOverlay: some View {

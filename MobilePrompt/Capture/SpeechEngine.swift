@@ -16,7 +16,7 @@ import Speech
 /// recognition). The aligner keeps its cursor across restarts, so they're
 /// invisible to the user.
 final class SpeechEngine: NSObject {
-    enum Status: Equatable { case idle, listening, denied, unavailable, error(String) }
+    enum Status: Equatable { case idle, listening, denied, unavailable, dictationDisabled, error(String) }
 
     /// Last few spoken words (tail), delivered on the main thread.
     var onWords: (([String]) -> Void)?
@@ -41,6 +41,18 @@ final class SpeechEngine: NSObject {
     private var lastPartialPush: CFTimeInterval = 0
     private let partialInterval: CFTimeInterval = 0.2
     private var lastPushedWords: [String] = []
+    /// Consecutive session failures with nothing recognized in between.
+    /// `SFSpeechRecognitionTask` can fail instantly and forever (dictation
+    /// switched off in Settings is the common one); restarting on every error
+    /// spins a ~1000-restarts-per-second loop that burns battery and never
+    /// recognizes a word, while the UI still reads "listening".
+    private var failureStreak = 0
+    private let maxFailureStreak = 6
+    /// On-device recognition can be refused (kLSRErrorDomain 201) even when
+    /// `supportsOnDeviceRecognition` says yes — the assets are present but the
+    /// system won't hand them out. Server recognition often still works, so
+    /// fall back once before declaring dictation dead.
+    private var forceServerRecognition = false
 
     static func requestPermission() async -> Bool {
         await withCheckedContinuation { cont in
@@ -54,12 +66,17 @@ final class SpeechEngine: NSObject {
 
     /// externalAudio: true when the capture session feeds buffers via append(_:).
     func start(externalAudio: Bool) {
+        #if DEBUG
+        print("SPX|start|external=\(externalAudio)|recognizer=\(recognizer != nil)|available=\(recognizer?.isAvailable ?? false)|onDevice=\(recognizer?.supportsOnDeviceRecognition ?? false)|locale=\(recognizer?.locale.identifier ?? "-")")
+        #endif
         guard let recognizer, recognizer.isAvailable else {
             notify(.unavailable)
             return
         }
         queue.sync {
             running = true
+            failureStreak = 0
+            forceServerRecognition = false
             beginSessionLocked()
         }
         if !externalAudio {
@@ -94,9 +111,24 @@ final class SpeechEngine: NSObject {
     /// Called from the capture session's data queue.
     func append(_ sampleBuffer: CMSampleBuffer) {
         queue.async { [weak self] in
-            self?.request?.appendAudioSampleBuffer(sampleBuffer)
+            guard let self else { return }
+            #if DEBUG
+            self.bufferCount += 1
+            let now = CACurrentMediaTime()
+            if now - self.lastBufferLog >= 1.0 {
+                self.lastBufferLog = now
+                print(String(format: "AUD|%.2f|buffers=%d|hasRequest=%d", now, self.bufferCount, self.request != nil ? 1 : 0))
+                self.bufferCount = 0
+            }
+            #endif
+            self.request?.appendAudioSampleBuffer(sampleBuffer)
         }
     }
+
+    #if DEBUG
+    private var bufferCount = 0
+    private var lastBufferLog: CFTimeInterval = 0
+    #endif
 
     // MARK: session lifecycle (on `queue`)
 
@@ -113,9 +145,11 @@ final class SpeechEngine: NSObject {
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         req.taskHint = .dictation
-        if recognizer?.supportsOnDeviceRecognition == true {
-            req.requiresOnDeviceRecognition = true
-        }
+        let onDevice = recognizer?.supportsOnDeviceRecognition == true && !forceServerRecognition
+        req.requiresOnDeviceRecognition = onDevice
+        #if DEBUG
+        print("SPX|session|id=\(id)|onDevice=\(onDevice)|auth=\(SFSpeechRecognizer.authorizationStatus().rawValue)|available=\(recognizer?.isAvailable ?? false)")
+        #endif
         request = req
         task = recognizer?.recognitionTask(with: req) { [weak self] result, error in
             guard let self else { return }
@@ -130,6 +164,7 @@ final class SpeechEngine: NSObject {
                 let isFinal = result.isFinal
                 self.queue.async {
                     guard id == self.sessionID else { return } // stale session
+                    self.failureStreak = 0 // recognition is alive
                     // Skip repeats: an unchanged tail carries no new information.
                     if !words.isEmpty, words != self.lastPushedWords {
                         let now = CACurrentMediaTime()
@@ -144,10 +179,55 @@ final class SpeechEngine: NSObject {
                     }
                     if isFinal { self.restartLocked(ifStill: id) }
                 }
-            } else if error != nil {
+            } else if let error {
+                let ns = error as NSError
+                #if DEBUG
+                print("SPX|error|domain=\(ns.domain)|code=\(ns.code)|\(ns.localizedDescription)")
+                #endif
+                // "Siri and Dictation are disabled": every future session will
+                // fail identically, and `recognizer.isAvailable` does NOT
+                // report it — so detect it here and tell the user.
+                if ns.domain == "kLSRErrorDomain", ns.code == 201 {
+                    self.queue.async {
+                        guard id == self.sessionID, self.running else { return }
+                        // Retry once on the server recognizer before concluding
+                        // that speech is off system-wide.
+                        if !self.forceServerRecognition, self.recognizer?.supportsOnDeviceRecognition == true {
+                            #if DEBUG
+                            print("SPX|fallback|on-device refused, retrying server-based")
+                            #endif
+                            self.forceServerRecognition = true
+                            self.endSessionLocked()
+                            self.beginSessionLocked()
+                            return
+                        }
+                        self.running = false
+                        self.endSessionLocked()
+                        DispatchQueue.main.async {
+                            self.restartTimer?.invalidate()
+                            self.restartTimer = nil
+                        }
+                        self.notify(.dictationDisabled)
+                    }
+                    return
+                }
                 self.queue.async {
-                    guard id == self.sessionID else { return } // cancelled/stale
-                    self.restartLocked(ifStill: id)
+                    guard id == self.sessionID, self.running else { return } // cancelled/stale
+                    self.failureStreak += 1
+                    guard self.failureStreak <= self.maxFailureStreak else {
+                        self.running = false
+                        self.endSessionLocked()
+                        self.notify(.error(AppSettings.tr("음성인식을 시작하지 못했어요")))
+                        return
+                    }
+                    // Exponential backoff so a persistent failure costs a few
+                    // retries, not a spin loop.
+                    let delay = min(0.25 * pow(2, Double(self.failureStreak - 1)), 4.0)
+                    self.endSessionLocked()
+                    self.queue.asyncAfter(deadline: .now() + delay) {
+                        guard self.running, id == self.sessionID else { return }
+                        self.beginSessionLocked()
+                    }
                 }
             }
         }

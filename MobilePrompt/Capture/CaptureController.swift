@@ -57,6 +57,9 @@ final class CaptureController: NSObject, ObservableObject {
     }
 
     func configureAndStart() {
+        #if DEBUG
+        observeSessionEvents()
+        #endif
         sessionQueue.async { [self] in
             session.beginConfiguration()
             session.sessionPreset = .hd1920x1080
@@ -69,11 +72,16 @@ final class CaptureController: NSObject, ObservableObject {
                 cameraDevice = cam
                 hasCamera = true
             }
+            var hasMic = false
             if let mic = AVCaptureDevice.default(for: .audio),
                let input = try? AVCaptureDeviceInput(device: mic),
                session.canAddInput(input) {
                 session.addInput(input)
+                hasMic = true
             }
+            #if DEBUG
+            print("CAP|inputs|camera=\(hasCamera)|mic=\(hasMic)|micDevice=\(AVCaptureDevice.default(for: .audio)?.localizedName ?? "nil")|micAuth=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
+            #endif
 
             videoOutput.setSampleBufferDelegate(self, queue: dataQueue)
             if hasCamera, session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
@@ -84,8 +92,14 @@ final class CaptureController: NSObject, ObservableObject {
                 conn.videoRotationAngle = 90 // portrait default until the coordinator kicks in
             }
             session.commitConfiguration()
+            #if DEBUG
+            print("CAP|outputs|audioOutputAdded=\(session.outputs.contains(audioOutput))|audioConnection=\(audioOutput.connection(with: .audio) != nil)")
+            #endif
             if hasCamera || !session.outputs.isEmpty {
                 session.startRunning()
+                #if DEBUG
+                print("CAP|started|running=\(session.isRunning)")
+                #endif
             }
             DispatchQueue.main.async {
                 self.cameraState = hasCamera ? .ready : .unavailable
@@ -212,6 +226,25 @@ final class CaptureController: NSObject, ObservableObject {
             }
         }
     }
+
+    #if DEBUG
+    /// Diagnostics only: iPad multitasking / another app grabbing the camera
+    /// interrupts the session, which silently starves the speech engine.
+    private func observeSessionEvents() {
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: .AVCaptureSessionWasInterrupted, object: session, queue: .main) { note in
+            let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
+            print("CAP|interrupted|reason=\(reason)")
+        }
+        nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { _ in
+            print("CAP|interruptionEnded")
+        }
+        nc.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: .main) { note in
+            let err = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+            print("CAP|runtimeError|\(err?.code ?? -1)|\(err?.localizedDescription ?? "?")")
+        }
+    }
+    #endif
 
     private func saveToPhotos(_ url: URL) {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
