@@ -217,10 +217,17 @@ struct PrompterView: View {
         return scene?.interfaceOrientation == .landscapeRight
     }
 
+    private var statusColor: Color {
+        guard settings.voiceMode else { return .blue }
+        if vm.capture.isInterrupted { return .red }
+        return vm.lost ? .orange : .green
+    }
+
     private var statusText: String {
         if !settings.voiceMode {
             return vm.isPaused ? AppSettings.tr("일시정지") : AppSettings.tr("자동 스크롤")
         }
+        if vm.capture.isInterrupted { return AppSettings.tr("카메라·마이크 중단됨") }
         if vm.lost { return AppSettings.tr("위치 찾는 중…") }
         switch vm.speechStatus {
         case .listening: return AppSettings.tr("듣는 중")
@@ -248,7 +255,7 @@ struct PrompterView: View {
 
             HStack(spacing: 6) {
                 Circle()
-                    .fill(settings.voiceMode ? (vm.lost ? Color.orange : Color.green) : Color.blue)
+                    .fill(statusColor)
                     .frame(width: 7, height: 7)
                 Text(statusText)
                     .font(.caption)

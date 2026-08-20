@@ -16,6 +16,7 @@
     "일시정지" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Paused" } } } },
     "자동 스크롤" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Auto Scroll" } } } },
     "위치 찾는 중…" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Finding position…" } } } },
+    "카메라·마이크 중단됨" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Camera & mic interrupted" } } } },
     "듣는 중" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Listening" } } } },
     "대기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Idle" } } } },
     "음성인식 권한 없음" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Speech permission denied" } } } },

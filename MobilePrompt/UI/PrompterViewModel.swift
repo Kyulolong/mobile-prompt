@@ -186,6 +186,18 @@ final class PrompterViewModel: ObservableObject {
         }
         permissionState = .granted
 
+        // No sample buffers arrive while the capture session is interrupted,
+        // and the recognition task goes stale — rebuild the pipeline rather
+        // than waiting for audio that never resumes. This also means coming
+        // back from Settings (a backgrounding interruption) retries speech,
+        // which is exactly when the user has just fixed a system-level cause.
+        capture.onInterruptionEnded = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.voiceMode else { return }
+                self.speech.stop()
+                self.startVoicePipeline()
+            }
+        }
         capture.configureAndStart()
         scroll.start()
         lastProgressAt = CACurrentMediaTime()

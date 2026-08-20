@@ -17,6 +17,15 @@ final class CaptureController: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var recordingSeconds = 0
     @Published var cameraState: CameraState = .starting
+    /// True while the session is interrupted (backgrounded, Split View /
+    /// Stage Manager, another app holding the camera). No sample buffers are
+    /// delivered in this state — including the mic buffers the speech engine
+    /// lives on — so it has to be visible rather than silently swallowed.
+    @Published var isInterrupted = false
+    /// Called on the main thread once the session is running again. The
+    /// recognition session went deaf while interrupted, so the owner has to
+    /// rebuild it instead of waiting for buffers that never resume.
+    var onInterruptionEnded: (() -> Void)?
     @Published var saveMessage: String?
     /// Host-clock seconds of the recording's first video frame — the zero
     /// point of the movie's timeline. Same clock as CACurrentMediaTime(), so
@@ -49,6 +58,11 @@ final class CaptureController: NSObject, ObservableObject {
     private var recordingURL: URL?
 
     private var recordingTimer: Timer?
+    private var sessionObservers: [NSObjectProtocol] = []
+
+    deinit {
+        sessionObservers.forEach(NotificationCenter.default.removeObserver)
+    }
 
     static func requestPermissions() async -> (camera: Bool, mic: Bool) {
         let cam = await AVCaptureDevice.requestAccess(for: .video)
@@ -57,9 +71,7 @@ final class CaptureController: NSObject, ObservableObject {
     }
 
     func configureAndStart() {
-        #if DEBUG
         observeSessionEvents()
-        #endif
         sessionQueue.async { [self] in
             session.beginConfiguration()
             session.sessionPreset = .hd1920x1080
@@ -227,24 +239,55 @@ final class CaptureController: NSObject, ObservableObject {
         }
     }
 
-    #if DEBUG
-    /// Diagnostics only: iPad multitasking / another app grabbing the camera
-    /// interrupts the session, which silently starves the speech engine.
+    /// iPad multitasking, backgrounding, or another app grabbing the camera
+    /// interrupts the session. Audio for speech recognition flows only through
+    /// here, so an unhandled interruption reads to the user as "listening"
+    /// while nothing is heard at all.
     private func observeSessionEvents() {
+        guard sessionObservers.isEmpty else { return }
         let nc = NotificationCenter.default
-        nc.addObserver(forName: .AVCaptureSessionWasInterrupted, object: session, queue: .main) { note in
-            let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
-            print("CAP|interrupted|reason=\(reason)")
-        }
-        nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { _ in
-            print("CAP|interruptionEnded")
-        }
-        nc.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: .main) { note in
-            let err = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
-            print("CAP|runtimeError|\(err?.code ?? -1)|\(err?.localizedDescription ?? "?")")
+        sessionObservers = [
+            nc.addObserver(forName: .AVCaptureSessionWasInterrupted, object: session, queue: .main) { [weak self] note in
+                #if DEBUG
+                let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
+                print("CAP|interrupted|reason=\(reason)")
+                #endif
+                self?.isInterrupted = true
+            },
+            nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { [weak self] _ in
+                #if DEBUG
+                print("CAP|interruptionEnded")
+                #endif
+                self?.resumeSession()
+            },
+            nc.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: .main) { [weak self] note in
+                #if DEBUG
+                let err = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+                print("CAP|runtimeError|\(err?.code ?? -1)|\(err?.localizedDescription ?? "?")")
+                #endif
+                // A runtime error stops the session for good; it never comes
+                // back on its own.
+                self?.isInterrupted = true
+                self?.resumeSession()
+            },
+        ]
+    }
+
+    /// Get the session running again and tell the owner, so the speech
+    /// pipeline can be rebuilt. Safe to call when it is already running.
+    private func resumeSession() {
+        sessionQueue.async { [self] in
+            if !session.isRunning { session.startRunning() }
+            let running = session.isRunning
+            #if DEBUG
+            print("CAP|resume|running=\(running)")
+            #endif
+            DispatchQueue.main.async {
+                self.isInterrupted = !running
+                if running { self.onInterruptionEnded?() }
+            }
         }
     }
-    #endif
 
     private func saveToPhotos(_ url: URL) {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
