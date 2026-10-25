@@ -6,7 +6,6 @@ import android.util.Log
 import com.teaminpact.mobileprompt.engine.AlignConfig
 import com.teaminpact.mobileprompt.engine.EngineLang
 import com.teaminpact.mobileprompt.engine.PromptEngine
-import com.teaminpact.mobileprompt.model.AppSettings
 import com.teaminpact.mobileprompt.speech.SpeechModels
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -37,7 +36,8 @@ object SelfTest {
             val audioSec = samples.size / 16000.0
             Log.i(TAG, "audio ${"%.1f".format(audioSec)} s")
 
-            val script = if (lang == EngineLang.KO) AppSettings.SAMPLE_SCRIPT_KO else AppSettings.SAMPLE_SCRIPT_EN
+            // The text the WAV was synthesized from (not the app's current sample).
+            val script = context.assets.open("selftest/${lang.code}.txt").bufferedReader().use { it.readText() }.trim()
             val engine = PromptEngine()
             val tokens = engine.load(
                 script,

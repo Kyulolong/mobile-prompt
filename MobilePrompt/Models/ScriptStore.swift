@@ -15,10 +15,19 @@ struct SavedScript: Identifiable, Codable, Equatable {
     }
 }
 
+/// A script that just arrived through the `voiceprompter://` handoff; the
+/// editor for `scriptID` consumes it once (autostart + return link).
+struct PendingHandoff {
+    let scriptID: UUID
+    let autostart: Bool
+    let returnURL: URL?
+}
+
 /// Script library persisted as JSON in Documents. Also drains the share-
 /// extension inbox (App Group) into new scripts.
 final class ScriptStore: ObservableObject {
     @Published private(set) var scripts: [SavedScript] = []
+    @Published var pendingHandoff: PendingHandoff?
 
     static let appGroupID = "group.com.teaminpact.mobileprompt"
     static let inboxKey = "sharedInbox"

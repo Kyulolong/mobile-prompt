@@ -94,7 +94,7 @@ import java.util.Locale
  * scrolling on top, and record/mode controls. Port of the iOS PrompterView.
  */
 @Composable
-fun PrompterScreen(script: String, settings: AppSettings, onClose: () -> Unit) {
+fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = null, onClose: () -> Unit) {
     val vm: PrompterViewModel = viewModel()
     val context = LocalContext.current
     val view = LocalView.current
@@ -238,23 +238,38 @@ fun PrompterScreen(script: String, settings: AppSettings, onClose: () -> Unit) {
         SettingsSheet(settings = settings, compact = true, onDismiss = { showSettings = false })
     }
 
+    // Saved: offer the movie + subtitles to other apps (Perplz registers as a
+    // share target) and, for handed-off scripts, the way back to Perplz.
     vm.capture.saveMessage?.let { msg ->
-        val shareIntent = vm.srtShareIntent()
+        val shareIntent = vm.recordingShareIntent()
         AlertDialog(
             onDismissRequest = { vm.capture.saveMessage = null },
             title = { Text(stringResource(R.string.notice)) },
-            text = { Text(msg) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(msg)
+                    Spacer(Modifier.height(6.dp))
+                    if (shareIntent != null) {
+                        TextButton(onClick = {
+                            vm.capture.saveMessage = null
+                            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video_srt)))
+                        }) { Text(stringResource(R.string.share_video_srt)) }
+                    }
+                    if (returnUrl != null) {
+                        TextButton(onClick = {
+                            vm.capture.saveMessage = null
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(returnUrl)))
+                            } catch (_: android.content.ActivityNotFoundException) {
+                                // Perplz not installed any more: nothing to go back to.
+                            }
+                        }) { Text(stringResource(R.string.back_to_perplz)) }
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = { vm.capture.saveMessage = null }) { Text(stringResource(R.string.ok)) }
             },
-            dismissButton = if (shareIntent != null) {
-                {
-                    TextButton(onClick = {
-                        vm.capture.saveMessage = null
-                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_srt)))
-                    }) { Text(stringResource(R.string.share_srt)) }
-                }
-            } else null,
         )
     }
 }

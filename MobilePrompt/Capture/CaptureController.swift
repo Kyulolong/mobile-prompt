@@ -31,6 +31,9 @@ final class CaptureController: NSObject, ObservableObject {
     /// point of the movie's timeline. Same clock as CACurrentMediaTime(), so
     /// the aligner's word timestamps map directly onto subtitle times.
     @Published var lastRecordingStart: Double?
+    /// The last recording's movie file, kept (after it is in Photos) so it can
+    /// be shared together with its subtitles; replaced on the next recording.
+    @Published var lastRecordingURL: URL?
 
     var cameraAvailable: Bool { cameraState == .ready }
 
@@ -181,6 +184,10 @@ final class CaptureController: NSObject, ObservableObject {
         guard cameraAvailable else { return } // UI calls this on the main thread
         dataQueue.async { [self] in
             guard writer == nil else { return }
+            if let previous = lastRecordingURL {
+                try? FileManager.default.removeItem(at: previous)
+                DispatchQueue.main.async { self.lastRecordingURL = nil }
+            }
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("prompt-\(UUID().uuidString).mov")
             guard let w = try? AVAssetWriter(outputURL: url, fileType: .mov) else { return }
@@ -292,14 +299,19 @@ final class CaptureController: NSObject, ObservableObject {
     private func saveToPhotos(_ url: URL) {
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
-                DispatchQueue.main.async { self.saveMessage = AppSettings.tr("사진 접근 권한이 없어 임시 폴더에만 저장됐어요") }
+                DispatchQueue.main.async {
+                    self.lastRecordingURL = url // still shareable from the temp folder
+                    self.saveMessage = AppSettings.tr("사진 접근 권한이 없어 임시 폴더에만 저장됐어요")
+                }
                 return
             }
             PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
             } completionHandler: { success, _ in
-                if success { try? FileManager.default.removeItem(at: url) }
+                // The file stays until the next recording so "Share" can hand
+                // the movie and its subtitles to Perplz together.
                 DispatchQueue.main.async {
+                    self.lastRecordingURL = url
                     self.saveMessage = success ? AppSettings.tr("갤러리에 저장됐어요 ✓")
                                                : AppSettings.tr("갤러리 저장에 실패했어요")
                 }

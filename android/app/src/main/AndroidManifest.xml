@@ -34,6 +34,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <!-- Perplz handoff: voiceprompter://script?s=…&autostart=1&return=… (docs/perplz-integration.md) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="voiceprompter" android:host="script" />
+            </intent-filter>
         </activity>
 
         <!-- Shares generated SRT subtitle files. -->

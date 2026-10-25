@@ -58,6 +58,9 @@ class CaptureController(private val context: Context) {
     /** Host-clock seconds when the recording started (same clock as word times). */
     var lastRecordingStart: Double? = null
         private set
+    /** MediaStore URI of the last saved recording, for sharing with its subtitles. */
+    var lastRecordingUri by mutableStateOf<Uri?>(null)
+        private set
 
     var onRecordingStarted: (() -> Unit)? = null
     /** Called when a recording ends, before [saveMessage] is set. */
@@ -153,6 +156,7 @@ class CaptureController(private val context: Context) {
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (micGranted) pending = pending.withAudioEnabled()
         saveMessage = null
+        lastRecordingUri = null
         recording = pending.start(mainExecutor) { event ->
             when (event) {
                 is VideoRecordEvent.Start -> {
@@ -170,6 +174,7 @@ class CaptureController(private val context: Context) {
                     onRecordingFinished?.invoke()
                     val saved = !event.hasError() || event.outputResults.outputUri != Uri.EMPTY
                     if (event.hasError()) Log.w(TAG, "recording finalized with error ${event.error}", event.cause)
+                    lastRecordingUri = event.outputResults.outputUri.takeIf { saved && it != Uri.EMPTY }
                     saveMessage = context.getString(if (saved) R.string.saved_gallery else R.string.save_failed)
                 }
             }

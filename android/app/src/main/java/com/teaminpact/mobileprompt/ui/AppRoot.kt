@@ -2,23 +2,35 @@ package com.teaminpact.mobileprompt.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.teaminpact.mobileprompt.PendingOpen
 import com.teaminpact.mobileprompt.model.AppSettings
 import com.teaminpact.mobileprompt.model.ScriptStore
 
 /** Three screens, one stack: library → editor → prompter. */
 sealed class Screen {
     object Library : Screen()
-    data class Editor(val scriptId: String) : Screen()
-    data class Prompter(val scriptId: String, val script: String) : Screen()
+    /** `returnUrl`: where "Back to Perplz" goes, when the script came by handoff. */
+    data class Editor(val scriptId: String, val returnUrl: String? = null) : Screen()
+    data class Prompter(val scriptId: String, val script: String, val returnUrl: String? = null) : Screen()
 }
 
 @Composable
-fun AppRoot(settings: AppSettings, store: ScriptStore) {
+fun AppRoot(settings: AppSettings, store: ScriptStore, pendingOpen: MutableState<PendingOpen?>) {
     var screen by rememberSaveable(stateSaver = ScreenSaver) { mutableStateOf<Screen>(Screen.Library) }
+
+    // A handed-off script jumps straight to its editor, or to the prompter with autostart.
+    LaunchedEffect(pendingOpen.value) {
+        val p = pendingOpen.value ?: return@LaunchedEffect
+        pendingOpen.value = null
+        screen = if (p.autostart) Screen.Prompter(p.scriptId, p.text, p.returnUrl)
+                 else Screen.Editor(p.scriptId, p.returnUrl)
+    }
 
     when (val s = screen) {
         is Screen.Library -> LibraryScreen(
@@ -32,13 +44,14 @@ fun AppRoot(settings: AppSettings, store: ScriptStore) {
                 scriptId = s.scriptId,
                 store = store,
                 onBack = { screen = Screen.Library },
-                onStart = { text -> screen = Screen.Prompter(s.scriptId, text) },
+                onStart = { text -> screen = Screen.Prompter(s.scriptId, text, s.returnUrl) },
             )
         }
         is Screen.Prompter -> PrompterScreen(
             script = s.script,
             settings = settings,
-            onClose = { screen = Screen.Editor(s.scriptId) },
+            returnUrl = s.returnUrl,
+            onClose = { screen = Screen.Editor(s.scriptId, s.returnUrl) },
         )
     }
 }

@@ -92,6 +92,16 @@ fun SettingsSheet(settings: AppSettings, compact: Boolean, onDismiss: () -> Unit
             SectionTitle(stringResource(R.string.section_auto))
             SliderRow(stringResource(R.string.speed), settings.autoSpeed.toFloat(), 10f..150f, 0, "${settings.autoSpeed.roundToInt()}") { settings.autoSpeed = it.toDouble() }
 
+            SectionTitle(stringResource(R.string.section_perplz))
+            val context = androidx.compose.ui.platform.LocalContext.current
+            TextButton(
+                onClick = {
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://perplz.com")))
+                },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) { Text(stringResource(R.string.perplz_make_script)) }
+            Footer(stringResource(R.string.perplz_footer))
+
             Footer(stringResource(R.string.about_footer))
         }
     }

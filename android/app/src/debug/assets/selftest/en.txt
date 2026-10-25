@@ -1,0 +1,13 @@
+Hello everyone, today I want to show you a teleprompter I built myself.
+
+Most prompter apps out there scroll the text at a fixed speed. But the moment you speak a little faster or slower, the screen drifts away from you.
+
+So I changed the approach. Instead of pushing the text at a constant pace, this app listens to my voice and follows exactly where I am reading, in real time.
+
+If I pause for a moment, the screen simply waits. If I ad-lib a little, it doesn't lose my place. When I come back to the script, it picks up right where I am.
+
+Numbers are no problem either. Things like 2025 or 30% are matched just fine, however you say them.
+
+Best of all, it's completely free. It runs on your phone without internet, no payments, no API keys.
+
+If the screen has been scrolling smoothly at your pace while you read this — it works. That's it for today. Don't forget to like and subscribe Kyulolong!

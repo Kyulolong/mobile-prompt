@@ -9,6 +9,13 @@ struct PrompterView: View {
     @State private var showSettings = false
     @State private var showSRTShare = false
     let script: String
+    /// Set when the script came from Perplz: offers "Back to Perplz" after saving.
+    var returnURL: URL? = nil
+
+    /// Recorded movie plus its subtitles (when voice-follow produced one).
+    private var shareItems: [Any] {
+        [vm.capture.lastRecordingURL, vm.srtFileURL].compactMap { $0 }
+    }
 
     var body: some View {
         ZStack {
@@ -121,10 +128,16 @@ struct PrompterView: View {
         .onChange(of: settings.highlightStyle) { _, v in vm.setHighlightStyle(v) }
         .sheet(isPresented: $showSettings) { SettingsSheet(compact: true) }
         .alert("안내", isPresented: saveAlertBinding) {
-            if vm.srtFileURL != nil {
-                Button("자막(SRT) 공유") {
+            if !shareItems.isEmpty {
+                Button("영상·자막 공유") {
                     vm.capture.saveMessage = nil
                     showSRTShare = true
+                }
+            }
+            if let returnURL {
+                Button("퍼플즈로 돌아가기") {
+                    vm.capture.saveMessage = nil
+                    UIApplication.shared.open(returnURL)
                 }
             }
             Button("확인") { vm.capture.saveMessage = nil }
@@ -132,10 +145,8 @@ struct PrompterView: View {
             Text(vm.capture.saveMessage ?? "")
         }
         .sheet(isPresented: $showSRTShare) {
-            if let url = vm.srtFileURL {
-                ActivityView(items: [url])
-                    .presentationDetents([.medium, .large])
-            }
+            ActivityView(items: shareItems)
+                .presentationDetents([.medium, .large])
         }
     }
 

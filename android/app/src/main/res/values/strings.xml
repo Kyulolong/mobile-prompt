@@ -42,6 +42,8 @@
     <string name="script_empty">The script is empty</string>
     <string name="notice">Notice</string>
     <string name="share_srt">Share Subtitles (SRT)</string>
+    <string name="share_video_srt">Share Video &amp; Subtitles</string>
+    <string name="back_to_perplz">Back to Perplz</string>
     <string name="ok">OK</string>
     <string name="close">Close</string>
     <string name="saved_gallery">Saved to your gallery ✓</string>
@@ -78,4 +80,7 @@
     <string name="section_auto">Auto Scroll</string>
     <string name="speed">Speed</string>
     <string name="about_footer">Speech recognition runs entirely on this device. Nothing is collected.</string>
+    <string name="section_perplz">Perplz</string>
+    <string name="perplz_make_script">Make a script in Perplz</string>
+    <string name="perplz_footer">Turn your project record into an intro-video script, read and record it here, and attach it to Perplz.</string>
 </resources>

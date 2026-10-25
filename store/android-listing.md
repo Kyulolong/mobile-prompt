@@ -6,12 +6,17 @@
 ## 한국어 (ko-KR)
 
 - 앱 이름(30자): `보이스 프롬프터`
-- 간단한 설명(80자): `목소리를 따라오는 텔레프롬프터. 내 속도로 읽으면 대본이 알아서 따라와요. 셀피 영상도 깨끗하게 녹화.`
+- 간단한 설명(80자): `퍼플즈가 만든 목소리 따라오는 프롬프터. 프로젝트 소개 영상을 읽으면서 찍고 자막까지 한 번에.`
 
 ### 자세한 설명
 
 ```
 보이스 프롬프터는 내 목소리를 듣고 지금 대본의 어디를 읽고 있는지 실시간으로 따라옵니다. 정해진 속도와 싸울 필요가 없어요.
+
+프로젝트 소개 영상, 1분이면 돼요
+• 퍼플즈에서 프로젝트 기록으로 소개 영상 대본을 만들면 이 앱에서 바로 열려요
+• 읽으면서 찍고, 영상과 자막을 퍼플즈로 보내 포트폴리오에 붙여요
+• 데모데이·자기소개·포트폴리오 영상에 딱 맞아요
 
 함께 읽어요
 • 빨리 읽어도, 천천히 읽어도 화면이 내 자리를 지켜요
@@ -44,18 +49,24 @@
 
 ```
 • 첫 출시. 목소리를 따라오는 텔레프롬프터 + 셀피 녹화 + 자막(SRT) 자동 생성
+• 퍼플즈 연동 — 퍼플즈에서 만든 프로젝트 소개 대본이 바로 열리고, 찍은 영상과 자막을 퍼플즈로 보낼 수 있어요
 • 음성인식이 기기 안에서 동작해요 — 인터넷 없이, 어떤 데이터도 밖으로 나가지 않아요
 ```
 
 ## English (en-US)
 
 - Name: `Voice Prompter`
-- Short description (80): `A teleprompter that follows your voice. Read at your pace; record clean selfies.`
+- Short description (80): `By Perplz. A teleprompter that follows your voice; record project intro videos.`
 
 ### Full description
 
 ```
 Voice Prompter listens to your voice and follows exactly where you are in the script — no fixed scroll speed to fight with.
+
+PROJECT INTRO VIDEOS IN A MINUTE
+• Build an intro-video script from your project record in Perplz and it opens right here
+• Read, record, and send the video with subtitles back to Perplz for your portfolio
+• Made for demo days, self-introductions, and portfolio videos
 
 READS WITH YOU
 • Speak faster or slower — the screen keeps your place
@@ -88,6 +99,7 @@ Supports Korean and English scripts — the language is detected automatically.
 
 ```
 • First release: a teleprompter that follows your voice, selfie recording, and automatic SRT subtitles
+• Perplz integration — intro-video scripts made in Perplz open right here, and you can send the recording with subtitles back to Perplz
 • Speech recognition runs fully on-device — works offline, nothing leaves your phone
 ```
 
@@ -102,7 +114,7 @@ Supports Korean and English scripts — the language is detected automatically.
 
 - 데이터 수집: **아니요** (수집·공유하는 사용자 데이터 없음)
 - 데이터 암호화 전송 / 삭제 요청: 해당 없음
-- 앱이 쓰는 권한: 카메라(프리뷰·녹화), 마이크(음성 따라가기·녹화 음성). 모두 기기 안에서만 처리
+- 앱이 쓰는 권한: 카메라(프리뷰·녹화), 마이크(음성 따라가기·녹화 음성). 모두 기기 안에서만 처리. 퍼플즈 딥링크로 받은 대본도 기기에만 저장
 - 개인정보처리방침 URL: `store/privacy.html`을 호스팅한 주소 (iOS와 공용, 2026-10 안드로이드 내용 추가)
 
 ## 앱 콘텐츠 선언

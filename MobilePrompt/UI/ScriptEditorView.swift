@@ -7,6 +7,8 @@ struct ScriptEditorView: View {
     @EnvironmentObject private var settings: AppSettings
     let scriptID: UUID
     @State private var showPrompter = false
+    /// Where "Back to Perplz" goes after a recording, when this script came by handoff.
+    @State private var returnURL: URL?
     @FocusState private var editorFocused: Bool
 
     private var textBinding: Binding<String> {
@@ -78,7 +80,13 @@ struct ScriptEditorView: View {
             }
         }
         .fullScreenCover(isPresented: $showPrompter) {
-            PrompterView(script: textBinding.wrappedValue)
+            PrompterView(script: textBinding.wrappedValue, returnURL: returnURL)
+        }
+        .onAppear {
+            guard let pending = store.pendingHandoff, pending.scriptID == scriptID else { return }
+            store.pendingHandoff = nil
+            returnURL = pending.returnURL
+            if pending.autostart { showPrompter = true }
         }
     }
 }

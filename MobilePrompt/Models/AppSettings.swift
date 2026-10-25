@@ -92,34 +92,26 @@ final class AppSettings: ObservableObject {
     }
 
     static let sampleScriptEn = """
-    Hello everyone, today I want to show you a teleprompter I built myself.
+    Hi, I'm Hana Kim, and I was the front-end developer on Team MealMate in Perplz cohort 3. Here is the project we built in 8 weeks, in about one minute.
 
-    Most prompter apps out there scroll the text at a fixed speed. But the moment you speak a little faster or slower, the screen drifts away from you.
+    The problem was simple. Students who don't want to eat alone have no easy way to find someone heading to the same cafeteria at the same time. In our survey, 78 percent of 212 students said they eat alone three or more times a week.
 
-    So I changed the approach. Instead of pushing the text at a constant pace, this app listens to my voice and follows exactly where I am reading, in real time.
+    So we built an app that matches meal buddies by timetable and location. I built the matching screen and chat in React Native, and worked in weekly sprints with two designers and one back-end engineer.
 
-    If I pause for a moment, the screen simply waits. If I ad-lib a little, it doesn't lose my place. When I come back to the script, it picks up right where I am.
+    The results beat our expectations. 540 people signed up during a 3-week beta, and 61 percent of requests ended in a match. The biggest lesson: a single sentence on the first screen doubled our conversion rate, more than any feature did.
 
-    Numbers are no problem either. Things like 2025 or 30% are matched just fine, however you say them.
-
-    Best of all, it's completely free. It runs on your phone without internet, no payments, no API keys.
-
-    If the screen has been scrolling smoothly at your pace while you read this — it works. That's it for today. Don't forget to like and subscribe Kyulolong!
+    In my next project, I want to bring that habit of deciding with data. Thanks for watching.
     """
 
     static let sampleScriptKo = """
-    안녕하세요 여러분, 오늘은 제가 직접 만든 프롬프터를 소개해 드릴게요.
+    안녕하세요, 저는 퍼플즈 3기 '밥친구' 프로젝트에서 프론트엔드 개발을 맡았던 김하늘입니다. 오늘은 저희 팀이 8주 동안 만든 서비스를 1분 안에 소개해 드릴게요.
 
-    시중에 나온 프롬프터 앱들은 대부분 정해진 속도로 글자가 흘러가죠. 그런데 말이 조금만 빨라지거나 느려지면 금방 어긋나 버려요. 특히 한국어는 인식이 잘 안 되는 경우가 많았고요.
+    저희가 풀고 싶었던 문제는 간단했어요. 혼자 밥 먹기 싫은 대학생이 같은 시간에 같은 식당에 갈 사람을 찾기가 너무 어렵다는 거였죠. 설문에 답한 212명 중 78퍼센트가 일주일에 세 번 이상 혼자 먹는다고 했습니다.
 
-    그래서 생각을 바꿨습니다. 글자를 일정한 속도로 미는 게 아니라, 제 목소리를 듣고 지금 어디를 읽고 있는지 실시간으로 따라오게 만든 거예요.
+    그래서 저희는 시간표와 위치를 기준으로 식사 메이트를 매칭하는 앱을 만들었어요. 저는 React Native로 매칭 화면과 채팅을 구현했고, 디자이너 두 분, 백엔드 한 분과 함께 매주 스프린트를 돌렸습니다.
 
-    잠깐 멈춰도 화면은 그대로 기다려 주고요. 중간에 애드립을 살짝 넣어도 위치를 잃지 않아요. 다시 대본으로 돌아오면 자연스럽게 이어서 따라옵니다.
+    결과는 기대 이상이었어요. 베타 3주 동안 540명이 가입했고, 매칭 성공률은 61퍼센트였습니다. 가장 큰 배움은 기능보다 첫 화면의 문장 하나가 전환율을 두 배로 바꿨다는 사실이었어요.
 
-    숫자도 문제없어요. 예를 들어 2025년, 30퍼센트, 이런 표현도 그대로 맞춰서 넘어갑니다.
-
-    무엇보다 전부 무료예요. 인터넷 없이 폰에서도 돌아가고, 별도의 결제나 API 키도 필요 없습니다.
-
-    여기까지 읽는 동안 화면이 제 속도에 맞춰 부드럽게 내려왔다면, 성공입니다. 오늘 영상은 여기까지고요, 다음에 더 유용한 걸로 찾아올게요. 규로롱 구독과 좋아요 잊지 마세요!
+    다음 프로젝트에서는 이 경험을 살려 데이터로 결정하는 팀을 만들고 싶습니다. 들어 주셔서 감사합니다.
     """
 }

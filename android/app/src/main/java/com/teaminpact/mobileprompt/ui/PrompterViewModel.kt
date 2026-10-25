@@ -416,13 +416,24 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         srtFile = f
     }
 
-    fun srtShareIntent(): Intent? {
-        val f = srtFile ?: return null
+    /**
+     * The recorded movie plus its subtitles (when voice-follow produced one),
+     * for the share sheet — Perplz picks both up as a share target.
+     */
+    fun recordingShareIntent(): Intent? {
         val app = getApplication<Application>()
-        val uri: Uri = FileProvider.getUriForFile(app, app.packageName + ".files", f)
-        return Intent(Intent.ACTION_SEND).apply {
-            type = "application/x-subrip"
-            putExtra(Intent.EXTRA_STREAM, uri)
+        val uris = ArrayList<Uri>()
+        capture.lastRecordingUri?.let { uris.add(it) }
+        srtFile?.let { uris.add(FileProvider.getUriForFile(app, app.packageName + ".files", it)) }
+        if (uris.isEmpty()) return null
+        val mime = when {
+            uris.size == 2 -> "*/*"
+            capture.lastRecordingUri != null -> "video/mp4"
+            else -> "application/x-subrip"
+        }
+        return Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = mime
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }

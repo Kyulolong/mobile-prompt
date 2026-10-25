@@ -104,6 +104,18 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.drainSharedInbox() }
         }
+        // Perplz (or any app) hands a script over via voiceprompter://script?s=…
+        .onOpenURL { url in
+            guard let request = HandoffRequest.parse(url) else { return }
+            let script = store.add(text: request.text)
+            store.pendingHandoff = PendingHandoff(scriptID: script.id, autostart: request.autostart, returnURL: request.returnURL)
+            withAnimation {
+                editMode = .inactive
+                selection = []
+                path = NavigationPath()
+                path.append(script.id)
+            }
+        }
     }
 
     private var emptyState: some View {

@@ -42,6 +42,8 @@
     <string name="script_empty">대본이 비어 있어요</string>
     <string name="notice">안내</string>
     <string name="share_srt">자막(SRT) 공유</string>
+    <string name="share_video_srt">영상·자막 공유</string>
+    <string name="back_to_perplz">퍼플즈로 돌아가기</string>
     <string name="ok">확인</string>
     <string name="close">닫기</string>
     <string name="saved_gallery">갤러리에 저장됐어요 ✓</string>
@@ -78,4 +80,7 @@
     <string name="section_auto">자동 스크롤</string>
     <string name="speed">속도</string>
     <string name="about_footer">음성인식은 전부 이 기기 안에서 처리돼요. 수집하는 정보는 없어요.</string>
+    <string name="section_perplz">퍼플즈</string>
+    <string name="perplz_make_script">퍼플즈에서 대본 만들기</string>
+    <string name="perplz_footer">프로젝트 기록으로 소개 영상 대본을 만들고, 이 앱으로 읽고 찍어서 퍼플즈에 붙일 수 있어요.</string>
 </resources>

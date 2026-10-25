@@ -61,6 +61,15 @@ adb logcat -s SelfTest
 3. `./gradlew :app:bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`
 4. Play Console → 앱 → 프로덕션(또는 테스트 트랙) → AAB 업로드. 에셋팩은 AAB 안에 들어 있어 별도 작업이 없다.
 
+## 퍼플즈 연동
+
+`voiceprompter://script?s=…&autostart=1&return=…` 딥링크(`MainActivity.handleIncoming` → `model/Handoff.kt`)로 대본을 받고,
+녹화 저장 알림에서 mp4+srt를 `ACTION_SEND_MULTIPLE`로 공유한다. 계약은 [../docs/perplz-integration.md](../docs/perplz-integration.md).
+
+```bash
+adb shell "am start -a android.intent.action.VIEW -d 'voiceprompter://script?s=%EC%95%88%EB%85%95&autostart=1&return=perplz%3A%2F%2Fproject%2F1'"
+```
+
 ## 튜닝 노브
 
 - 정렬 민감도: `ui/PrompterViewModel.kt`의 `alignOverrides` (iOS와 같은 값으로 시작)

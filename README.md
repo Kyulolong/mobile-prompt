@@ -1,6 +1,6 @@
 # MobilePrompt
 
-[auto-prompt](https://github.com/Kyulolong/auto-prompt)(보이스 프롬프터 웹앱)의 iOS 버전.
+[auto-prompt](https://github.com/Kyulolong/auto-prompt)(보이스 프롬프터 웹앱)의 iOS 버전. 안드로이드 버전은 [android/](android/README.md).
 **셀피 카메라 화면 위에 반투명 대본을 띄우고**, 내 목소리를 들으며 지금 읽는 위치를 실시간으로 따라간다. 앱 안에서 영상 녹화까지 — 결과 영상에는 글자가 찍히지 않고, 갤러리에 저장된다.
 
 - **음성 따라가기** — Apple 온디바이스 음성인식(ko-KR)으로 대본 정렬. 웹 버전의 자모 정렬 엔진을 그대로 사용
@@ -67,3 +67,9 @@ auto_prompt 쪽 엔진을 고쳤다면 파일을 `engine-src/`로 다시 복사�
 
 MVP. 시뮬레이터에서 검증된 것: 정렬 엔진(JSC), 음성 따라가기(Mac 마이크), 자동 스크롤, 하이라이트/스크롤 추종, 설정.
 실기기에서 확인 필요: 카메라 프리뷰, 녹화 + 갤러리 저장, 녹화 중 음성 따라가기(마이크 공유), 온디바이스 인식 지연·발열.
+
+## 퍼플즈 연동
+
+보이스 프롬프터는 [퍼플즈](https://perplz.com)의 "프로젝트 소개 영상" 도구로 쓰인다. 퍼플즈가 `voiceprompter://script?s=…&autostart=1&return=…`로
+대본을 넘기면 라이브러리에 저장되고 바로 촬영 화면이 열린다. 녹화 저장 알림의 "영상·자막 공유"가 mov+srt를 공유 시트에 올리고,
+"퍼플즈로 돌아가기"가 `return` URL을 연다. 계약 전체는 [docs/perplz-integration.md](docs/perplz-integration.md).
