@@ -1,0 +1,16 @@
+# Gradle / IDE
+.gradle/
+build/
+.idea/
+*.iml
+local.properties
+.kotlin/
+
+# Signing — upload key lives only on the release machine
+keystore/
+keystore.properties
+
+# Speech models (~180 MB, over GitHub's file limit) and the 49 MB sherpa-onnx
+# AAR — both fetched by scripts/fetch-models.sh
+speechmodels/src/main/assets/models/
+app/libs/*.aar

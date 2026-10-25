@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voice Prompter</string>
+
+    <!-- Library -->
+    <string name="library_empty_title">No scripts yet</string>
+    <string name="library_empty_body">Create a new script, or share text\nfrom another app to import it</string>
+    <string name="new_script">New Script</string>
+    <string name="select_multiple">Select Multiple</string>
+    <string name="delete">Delete</string>
+    <string name="delete_n">Delete (%1$d)</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+    <string name="settings">Settings</string>
+
+    <!-- Editor -->
+    <string name="script">Script</string>
+    <string name="editor_placeholder">Paste your script here…</string>
+    <string name="insert_sample">Sample</string>
+    <string name="clear_script">Clear</string>
+    <string name="start">Start</string>
+
+    <!-- Prompter -->
+    <string name="camera_starting">Starting camera…</string>
+    <string name="camera_unavailable">Camera isn\'t available on this device.\nShowing the script only.</string>
+    <string name="rec_badge">REC %1$s</string>
+    <string name="paused">Paused</string>
+    <string name="auto_scroll">Auto Scroll</string>
+    <string name="finding_position">Finding position…</string>
+    <string name="camera_interrupted">Camera interrupted</string>
+    <string name="listening">Listening</string>
+    <string name="idle">Idle</string>
+    <string name="speech_loading">Loading speech model…</string>
+    <string name="speech_denied">Microphone permission denied</string>
+    <string name="perm_title">Microphone permission needed</string>
+    <string name="perm_body">Allow the microphone in Settings > Apps > Voice Prompter > Permissions</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="switch_to_auto">Switch to auto-scroll</string>
+    <string name="speech_start_failed">Couldn\'t start speech recognition</string>
+    <string name="model_load_failed">Couldn\'t load the speech model</string>
+    <string name="mic_start_failed">Couldn\'t start the microphone</string>
+    <string name="script_empty">The script is empty</string>
+    <string name="notice">Notice</string>
+    <string name="share_srt">Share Subtitles (SRT)</string>
+    <string name="ok">OK</string>
+    <string name="close">Close</string>
+    <string name="saved_gallery">Saved to your gallery ✓</string>
+    <string name="save_failed">Failed to save the recording</string>
+    <string name="record">Record</string>
+    <string name="stop_recording">Stop recording</string>
+    <string name="mode_voice">Voice follow</string>
+    <string name="mode_auto">Auto scroll</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+
+    <!-- Settings -->
+    <string name="section_text">Text</string>
+    <string name="size">Size</string>
+    <string name="highlight_color">Highlight Color</string>
+    <string name="yellow">Yellow</string>
+    <string name="green">Green</string>
+    <string name="sky">Sky</string>
+    <string name="pink">Pink</string>
+    <string name="none">None</string>
+    <string name="mirror_mode">Mirror Mode (flip horizontally)</string>
+    <string name="section_display">Display</string>
+    <string name="background_dim">Background Dim</string>
+    <string name="reading_line">Reading Line</string>
+    <string name="section_box">Script Box (Portrait)</string>
+    <string name="width">Width</string>
+    <string name="top_margin">Top Margin</string>
+    <string name="bottom_margin">Bottom Margin</string>
+    <string name="box_footer">In landscape, the script is placed at 55% width on the camera side automatically.</string>
+    <string name="section_language">Language</string>
+    <string name="app_language">App Language</string>
+    <string name="system_default">System Default</string>
+    <string name="language_footer">The recognition language is detected from your script automatically — including sentences written in another language.</string>
+    <string name="section_auto">Auto Scroll</string>
+    <string name="speed">Speed</string>
+    <string name="about_footer">Speech recognition runs entirely on this device. Nothing is collected.</string>
+</resources>

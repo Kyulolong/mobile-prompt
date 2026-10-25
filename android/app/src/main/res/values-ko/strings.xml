@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">보이스 프롬프터</string>
+
+    <!-- Library -->
+    <string name="library_empty_title">아직 대본이 없어요</string>
+    <string name="library_empty_body">새 대본을 만들거나, 다른 앱에서\n텍스트를 공유해 가져올 수 있어요</string>
+    <string name="new_script">새 대본</string>
+    <string name="select_multiple">여러 개 선택</string>
+    <string name="delete">삭제</string>
+    <string name="delete_n">삭제 (%1$d)</string>
+    <string name="done">완료</string>
+    <string name="cancel">취소</string>
+    <string name="settings">설정</string>
+
+    <!-- Editor -->
+    <string name="script">대본</string>
+    <string name="editor_placeholder">여기에 대본을 붙여넣으세요…</string>
+    <string name="insert_sample">샘플 넣기</string>
+    <string name="clear_script">지우기</string>
+    <string name="start">시작</string>
+
+    <!-- Prompter -->
+    <string name="camera_starting">카메라 켜는 중…</string>
+    <string name="camera_unavailable">이 기기에서는 카메라를 쓸 수 없어\n대본 화면만 표시돼요</string>
+    <string name="rec_badge">녹화 중 %1$s</string>
+    <string name="paused">일시정지</string>
+    <string name="auto_scroll">자동 스크롤</string>
+    <string name="finding_position">위치 찾는 중…</string>
+    <string name="camera_interrupted">카메라 중단됨</string>
+    <string name="listening">듣는 중</string>
+    <string name="idle">대기</string>
+    <string name="speech_loading">음성 모델 불러오는 중…</string>
+    <string name="speech_denied">마이크 권한 없음</string>
+    <string name="perm_title">마이크 권한이 필요해요</string>
+    <string name="perm_body">설정 > 애플리케이션 > 보이스 프롬프터 > 권한에서 마이크를 허용해 주세요</string>
+    <string name="open_settings">설정 열기</string>
+    <string name="switch_to_auto">자동 스크롤로 전환</string>
+    <string name="speech_start_failed">음성인식을 시작하지 못했어요</string>
+    <string name="model_load_failed">음성 모델을 불러오지 못했어요</string>
+    <string name="mic_start_failed">마이크를 시작하지 못했어요</string>
+    <string name="script_empty">대본이 비어 있어요</string>
+    <string name="notice">안내</string>
+    <string name="share_srt">자막(SRT) 공유</string>
+    <string name="ok">확인</string>
+    <string name="close">닫기</string>
+    <string name="saved_gallery">갤러리에 저장됐어요 ✓</string>
+    <string name="save_failed">녹화 저장에 실패했어요</string>
+    <string name="record">녹화</string>
+    <string name="stop_recording">녹화 중지</string>
+    <string name="mode_voice">음성 따라가기</string>
+    <string name="mode_auto">자동 스크롤</string>
+    <string name="pause">일시정지</string>
+    <string name="resume">계속</string>
+
+    <!-- Settings -->
+    <string name="section_text">글자</string>
+    <string name="size">크기</string>
+    <string name="highlight_color">하이라이트 색</string>
+    <string name="yellow">노랑</string>
+    <string name="green">초록</string>
+    <string name="sky">하늘</string>
+    <string name="pink">분홍</string>
+    <string name="none">없음</string>
+    <string name="mirror_mode">거울 모드 (좌우 반전)</string>
+    <string name="section_display">화면</string>
+    <string name="background_dim">배경 어둡기</string>
+    <string name="reading_line">읽는 줄 위치</string>
+    <string name="section_box">글상자 (세로 모드)</string>
+    <string name="width">좌우 폭</string>
+    <string name="top_margin">위 여백</string>
+    <string name="bottom_margin">아래 여백</string>
+    <string name="box_footer">가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요.</string>
+    <string name="section_language">언어</string>
+    <string name="app_language">앱 언어</string>
+    <string name="system_default">시스템 설정</string>
+    <string name="language_footer">인식 언어는 대본에서 자동으로 감지되고, 대본 속 다른 언어 문장도 자동으로 전환돼요.</string>
+    <string name="section_auto">자동 스크롤</string>
+    <string name="speed">속도</string>
+    <string name="about_footer">음성인식은 전부 이 기기 안에서 처리돼요. 수집하는 정보는 없어요.</string>
+</resources>
