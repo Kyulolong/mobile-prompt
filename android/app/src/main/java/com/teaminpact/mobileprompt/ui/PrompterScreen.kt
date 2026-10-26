@@ -1,6 +1,7 @@
 package com.teaminpact.mobileprompt.ui
 
 import android.Manifest
+import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -80,6 +81,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.teaminpact.mobileprompt.R
@@ -95,8 +98,14 @@ import java.util.Locale
  */
 @Composable
 fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = null, onClose: () -> Unit) {
-    val vm: PrompterViewModel = viewModel()
     val context = LocalContext.current
+    // One ViewModel per prompter session, cleared as soon as this screen leaves
+    // composition — X, back, a new handoff replacing it, or the activity being
+    // recreated (app-language change) — so the camera and mic are released and
+    // the next script never inherits this one's state.
+    val session = remember { PrompterSession() }
+    DisposableEffect(session) { onDispose { session.viewModelStore.clear() } }
+    val vm = viewModel(session) { PrompterViewModel(context.applicationContext as Application) }
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var showSettings by remember { mutableStateOf(false) }
@@ -272,6 +281,11 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
             },
         )
     }
+}
+
+/** Owns the per-session ViewModel; see PrompterScreen. */
+private class PrompterSession : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
 
 /**

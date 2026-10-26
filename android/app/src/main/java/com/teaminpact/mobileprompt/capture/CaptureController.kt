@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraState
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCase
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.MediaStoreOutputOptions
@@ -28,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import com.teaminpact.mobileprompt.R
 import com.teaminpact.mobileprompt.engine.Clock
 import java.text.SimpleDateFormat
@@ -71,14 +74,25 @@ class CaptureController(private val context: Context) {
     val canRecord: Boolean get() = cameraStatus == CameraStatus.READY && videoCapture != null
 
     private var provider: ProcessCameraProvider? = null
+    /** What this controller bound; the provider is process-wide, so unbind only these. */
+    private var useCases: Array<UseCase> = emptyArray()
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
     private val mainExecutor = ContextCompat.getMainExecutor(context)
+    /** Bumped by every bind/unbind, so a provider that resolves late can't bind a closed prompter. */
+    private var bindGeneration = 0
+    private var cameraState: LiveData<CameraState>? = null
+    private val cameraStateObserver = Observer<CameraState> { st ->
+        isInterrupted = st.type == CameraState.Type.PENDING_OPEN ||
+            (st.error != null && st.type != CameraState.Type.OPEN)
+    }
 
     /** Bind preview + recorder to the owner's lifecycle; CameraX handles pause/resume. */
     fun bind(owner: LifecycleOwner, previewView: PreviewView) {
+        val generation = ++bindGeneration
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
+            if (generation != bindGeneration) return@addListener
             val p = try { future.get() } catch (e: Exception) {
                 Log.e(TAG, "camera provider unavailable", e)
                 cameraStatus = CameraStatus.UNAVAILABLE
@@ -104,22 +118,23 @@ class CaptureController(private val context: Context) {
                 .build()
             val vc = VideoCapture.withOutput(recorder)
             try {
+                releaseObservers()
                 p.unbindAll()
                 val camera = try {
-                    p.bindToLifecycle(owner, selector, preview, vc).also { videoCapture = vc }
+                    p.bindToLifecycle(owner, selector, preview, vc).also {
+                        videoCapture = vc
+                        useCases = arrayOf(preview, vc)
+                    }
                 } catch (e: IllegalArgumentException) {
                     // No recordable quality on this camera (seen on emulators):
                     // keep the live preview, just without the record button.
                     Log.w(TAG, "video capture unsupported; preview only", e)
                     p.unbindAll()
                     videoCapture = null
-                    p.bindToLifecycle(owner, selector, preview)
+                    p.bindToLifecycle(owner, selector, preview).also { useCases = arrayOf(preview) }
                 }
                 cameraStatus = CameraStatus.READY
-                camera.cameraInfo.cameraState.observe(owner) { st ->
-                    isInterrupted = st.type == CameraState.Type.PENDING_OPEN ||
-                        (st.error != null && st.type != CameraState.Type.OPEN)
-                }
+                cameraState = camera.cameraInfo.cameraState.also { it.observe(owner, cameraStateObserver) }
             } catch (e: Exception) {
                 Log.e(TAG, "bind failed", e)
                 cameraStatus = CameraStatus.UNAVAILABLE
@@ -130,10 +145,19 @@ class CaptureController(private val context: Context) {
     private fun ProcessCameraProvider.safeHasCamera(selector: CameraSelector): Boolean =
         try { hasCamera(selector) } catch (_: Exception) { false }
 
+    private fun releaseObservers() {
+        cameraState?.removeObserver(cameraStateObserver)
+        cameraState = null
+    }
+
+    /** Release the camera (and with it the privacy indicator); stops a recording in progress. */
     fun unbind() {
+        bindGeneration++
         recording?.stop()
         recording = null
-        provider?.unbindAll()
+        releaseObservers()
+        provider?.unbind(*useCases)
+        useCases = emptyArray()
         videoCapture = null
     }
 

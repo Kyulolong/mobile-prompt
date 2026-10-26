@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,12 +48,16 @@ fun AppRoot(settings: AppSettings, store: ScriptStore, pendingOpen: MutableState
                 onStart = { text -> screen = Screen.Prompter(s.scriptId, text, s.returnUrl) },
             )
         }
-        is Screen.Prompter -> PrompterScreen(
-            script = s.script,
-            settings = settings,
-            returnUrl = s.returnUrl,
-            onClose = { screen = Screen.Editor(s.scriptId, s.returnUrl) },
-        )
+        // Keyed so a handoff arriving while the prompter is open replaces the
+        // session instead of recomposing the old one with a new script.
+        is Screen.Prompter -> key(s) {
+            PrompterScreen(
+                script = s.script,
+                settings = settings,
+                returnUrl = s.returnUrl,
+                onClose = { screen = Screen.Editor(s.scriptId, s.returnUrl) },
+            )
+        }
     }
 }
 

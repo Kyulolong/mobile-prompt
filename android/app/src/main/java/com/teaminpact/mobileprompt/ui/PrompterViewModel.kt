@@ -34,6 +34,10 @@ import kotlin.math.abs
 /**
  * The hub that wires everything together (port of the iOS PrompterViewModel):
  * speech -> aligner -> scroll + imperative word highlight on the text view.
+ *
+ * One instance per prompter session: PrompterScreen scopes it to its own
+ * composition, so it is cleared (camera released, mic stopped) whenever the
+ * prompter leaves the screen, and the next script starts from a clean slate.
  */
 class PrompterViewModel(app: Application) : AndroidViewModel(app) {
     enum class PermissionState { UNKNOWN, GRANTED, DENIED }
@@ -110,7 +114,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Called once by the screen after permissions were requested. */
+    /** Called once per session by the screen after permissions were requested. */
     fun start(script: String, settings: AppSettings, micGranted: Boolean) {
         if (started) return
         started = true
