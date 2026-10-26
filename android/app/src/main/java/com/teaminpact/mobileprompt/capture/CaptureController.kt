@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -64,6 +65,13 @@ class CaptureController(private val context: Context) {
     /** MediaStore URI of the last saved recording, for sharing with its subtitles. */
     var lastRecordingUri by mutableStateOf<Uri?>(null)
         private set
+    /**
+     * `VoicePrompter-yyyyMMdd-HHmmss` of the last recording, stamped when it
+     * started. The movie is saved under it and its subtitles reuse it, so the
+     * pair shares one name (docs/perplz-integration.md).
+     */
+    var lastRecordingName: String? = null
+        private set
 
     var onRecordingStarted: (() -> Unit)? = null
     /** Called when a recording ends, before [saveMessage] is set. */
@@ -86,6 +94,8 @@ class CaptureController(private val context: Context) {
         isInterrupted = st.type == CameraState.Type.PENDING_OPEN ||
             (st.error != null && st.type != CameraState.Type.OPEN)
     }
+    private val displayManager = context.getSystemService(DisplayManager::class.java)
+    private var displayListener: DisplayManager.DisplayListener? = null
 
     /** Bind preview + recorder to the owner's lifecycle; CameraX handles pause/resume. */
     fun bind(owner: LifecycleOwner, previewView: PreviewView) {
@@ -117,6 +127,7 @@ class CaptureController(private val context: Context) {
                 )
                 .build()
             val vc = VideoCapture.withOutput(recorder)
+            previewView.display?.let { vc.targetRotation = it.rotation }
             try {
                 releaseObservers()
                 p.unbindAll()
@@ -135,6 +146,7 @@ class CaptureController(private val context: Context) {
                 }
                 cameraStatus = CameraStatus.READY
                 cameraState = camera.cameraInfo.cameraState.also { it.observe(owner, cameraStateObserver) }
+                if (videoCapture != null) followDisplayRotation(previewView)
             } catch (e: Exception) {
                 Log.e(TAG, "bind failed", e)
                 cameraStatus = CameraStatus.UNAVAILABLE
@@ -145,9 +157,31 @@ class CaptureController(private val context: Context) {
     private fun ProcessCameraProvider.safeHasCamera(selector: CameraSelector): Boolean =
         try { hasCamera(selector) } catch (_: Exception) { false }
 
+    /**
+     * The activity handles rotation itself (no recreate), so the recorder's
+     * target rotation has to be kept in step with the display by hand — or
+     * movies recorded after turning the phone come out sideways. CameraX
+     * applies it from the next recording on, so a take keeps the orientation
+     * it started with (same as iOS).
+     */
+    private fun followDisplayRotation(previewView: PreviewView) {
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayChanged(displayId: Int) {
+                val display = previewView.display ?: return
+                if (display.displayId == displayId) videoCapture?.targetRotation = display.rotation
+            }
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+        }
+        displayManager.registerDisplayListener(listener, null)
+        displayListener = listener
+    }
+
     private fun releaseObservers() {
         cameraState?.removeObserver(cameraStateObserver)
         cameraState = null
+        displayListener?.let { displayManager.unregisterDisplayListener(it) }
+        displayListener = null
     }
 
     /** Release the camera (and with it the privacy indicator); stops a recording in progress. */
@@ -184,6 +218,7 @@ class CaptureController(private val context: Context) {
         recording = pending.start(mainExecutor) { event ->
             when (event) {
                 is VideoRecordEvent.Start -> {
+                    lastRecordingName = name
                     lastRecordingStart = Clock.now()
                     recordingSeconds = 0
                     isRecording = true

@@ -50,6 +50,10 @@
     <string name="save_failed">Failed to save the recording</string>
     <string name="record">Record</string>
     <string name="stop_recording">Stop recording</string>
+    <string name="close_while_recording_title">Stop recording?</string>
+    <string name="close_while_recording_body">The prompter will close. What you\'ve recorded so far is saved to your gallery.</string>
+    <string name="stop_and_close">Stop and close</string>
+    <string name="keep_recording">Keep recording</string>
     <string name="mode_voice">Voice follow</string>
     <string name="mode_auto">Auto scroll</string>
     <string name="pause">Pause</string>

@@ -172,7 +172,11 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         vm.stopAll()
         onClose()
     }
-    BackHandler { close() }
+    // An edge swipe is easy to make by accident; don't let it end a take
+    // unasked. (X is a deliberate tap and closes right away, as on iOS.)
+    var confirmClose by remember { mutableStateOf(false) }
+    BackHandler { if (vm.capture.isRecording) confirmClose = true else close() }
+    LaunchedEffect(vm.capture.isRecording) { if (!vm.capture.isRecording) confirmClose = false }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         // Camera
@@ -223,7 +227,7 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
             )
         }
 
-        if (vm.permissionState == PrompterViewModel.PermissionState.DENIED) {
+        if (settings.voiceMode && vm.permissionState == PrompterViewModel.PermissionState.DENIED) {
             PermissionOverlay(
                 Modifier.align(Alignment.Center),
                 onOpenSettings = {
@@ -245,6 +249,20 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
 
     if (showSettings) {
         SettingsSheet(settings = settings, compact = true, onDismiss = { showSettings = false })
+    }
+
+    if (confirmClose) {
+        AlertDialog(
+            onDismissRequest = { confirmClose = false },
+            title = { Text(stringResource(R.string.close_while_recording_title)) },
+            text = { Text(stringResource(R.string.close_while_recording_body)) },
+            confirmButton = {
+                TextButton(onClick = { confirmClose = false; close() }) { Text(stringResource(R.string.stop_and_close)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClose = false }) { Text(stringResource(R.string.keep_recording)) }
+            },
+        )
     }
 
     // Saved: offer the movie + subtitles to other apps (Perplz registers as a

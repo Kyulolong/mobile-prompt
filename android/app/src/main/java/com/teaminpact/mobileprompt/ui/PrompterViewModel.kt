@@ -26,9 +26,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -412,10 +409,10 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun finishSRT() {
         val recStart = capture.lastRecordingStart ?: return
+        val name = capture.lastRecordingName ?: return
         val srt = buildSrt(tokens, recWordTimes, recStart) ?: return
         val dir = File(getApplication<Application>().cacheDir, "srt").apply { mkdirs() }
-        val name = "VoicePrompter-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".srt"
-        val f = File(dir, name)
+        val f = File(dir, "$name.srt")
         f.writeText(srt)
         srtFile = f
     }
