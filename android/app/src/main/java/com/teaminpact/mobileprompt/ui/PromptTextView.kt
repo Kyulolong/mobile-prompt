@@ -83,9 +83,9 @@ class PromptTextView(context: Context) : ScrollView(context), ScrollSurface {
             val start = sb.length
             sb.append(if (keepHangulWords) joinHangul(t.raw) else t.raw)
             r.add(start until sb.length)
-            if (i > 0 && t.breakBefore && t.raw.isNotEmpty()) {
-                // Paragraph spacing: extra room above the first line of a paragraph.
-                sb.setSpan(ParagraphTopSpan(paraExtra), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (i + 1 < tokens.size && tokens[i + 1].breakBefore) {
+                // Paragraph spacing: extra room below the last line of a paragraph.
+                sb.setSpan(ParagraphBottomSpan(paraExtra), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
         ranges = r
@@ -195,13 +195,19 @@ class PromptTextView(context: Context) : ScrollView(context), ScrollSurface {
     override val isUserDragging: Boolean
         get() = touching || Clock.now() - lastUserScrollAt < 0.12
 
-    /** Extra space above the first line of a paragraph (TextView has no paragraph spacing). */
-    private class ParagraphTopSpan(private val extra: Int) : LineHeightSpan {
+    /**
+     * Extra space below the last line of a paragraph (TextView has no
+     * paragraph spacing). Not above the first line: StaticLayout carries a
+     * line's chosen metrics into the following lines of the same paragraph,
+     * so a taller first line made every wrapped line taller. Metrics reset at
+     * a paragraph's end, so growing its last line touches nothing else.
+     */
+    private class ParagraphBottomSpan(private val extra: Int) : LineHeightSpan {
         override fun chooseHeight(text: CharSequence, start: Int, end: Int, spanstartv: Int, lineHeight: Int, fm: Paint.FontMetricsInt) {
-            val spanStart = (text as Spanned).getSpanStart(this)
-            if (spanStart in start until end) {
-                fm.ascent -= extra
-                fm.top -= extra
+            val spanEnd = (text as Spanned).getSpanEnd(this)
+            if (spanEnd in start + 1..end) {
+                fm.descent += extra
+                fm.bottom += extra
             }
         }
     }
