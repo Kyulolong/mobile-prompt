@@ -16,7 +16,7 @@
 
 심사 통과 후: 출시 버튼. 이후 공개 스토어 `version`이 `1.3.0`으로 보이면 끝.
 
-## B. Google Play Console — 1.0.0 (1)
+## B. Google Play Console — 1.3.0 (1)
 
 앱 만들기 화면에서 패키지 이름은 **`com.teaminpact.mobileprompt`**, 기본 언어 한국어, 앱, **무료**, 선언 두 개 체크 → 만들기.
 
@@ -53,7 +53,7 @@
 
 1. 왼쪽 **테스트 → 내부 테스트** → **새 버전 만들기**.
 2. **앱 서명**: Google Play 앱 서명 사용(기본). 업로드한 AAB의 키가 업로드 키로 등록된다.
-3. AAB 업로드: `android/app/build/outputs/bundle/release/app-release.aab` (201MB, 에셋팩 포함 — 업로드 후 "모델" 에셋팩이 같이 보인다). 버전 이름 `1.0.0`, 코드 1.
+3. AAB 업로드: `android/app/build/outputs/bundle/release/app-release.aab` (201MB, 에셋팩 포함 — 업로드 후 "모델" 에셋팩이 같이 보인다). 버전 이름 `1.3.0`, 코드 1 (iOS와 번호를 맞췄다).
 4. 출시 노트: `store/android-listing.md`의 출시 노트(ko·en).
 5. 테스터: **이메일 목록 만들기** → 본인 Google 계정 → 저장 → 버전 검토 → **내부 테스트로 출시 시작**.
 6. 테스터 링크(`play.google.com/apps/internaltest/...`)를 갤럭시에서 열어 설치. ⚠️ 지금 갤럭시에 깔린 앱은 업로드 키 서명이라 **먼저 삭제**해야 설치된다.
