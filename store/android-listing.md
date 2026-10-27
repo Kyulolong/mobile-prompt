@@ -1,4 +1,4 @@
-# 안드로이드(Play 스토어) 1.3.0 스토어 자료 (versionCode 1)
+# 안드로이드(Play 스토어) 1.3.0 스토어 자료 (versionCode 2)
 
 > 패키지: `com.teaminpact.mobileprompt` · 계정: TEAMINPACT 법인 Play Console · 카테고리: 동영상 플레이어/편집기 (또는 생산성)
 > 콘텐츠 등급: 전체이용가 설문 (사용자 생성 콘텐츠 없음, 광고 없음) · 가격: 무료
