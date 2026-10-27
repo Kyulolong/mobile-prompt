@@ -63,7 +63,18 @@ final class CaptureController: NSObject, ObservableObject {
     private var recordingTimer: Timer?
     private var sessionObservers: [NSObjectProtocol] = []
 
+    // Restart policy — main thread only. `wantsRunning` is the owner's intent
+    // (configureAndStart → stopSession); nothing may restart the session
+    // outside it, or a stopped prompter keeps the camera and mic spinning.
+    private var wantsRunning = false
+    private var runtimeRestarts = 0
+    private let maxRuntimeRestarts = 3
+    private var lastRuntimeErrorAt: CFTimeInterval = 0
+
     deinit {
+        #if DEBUG
+        print("CAP|deinit")
+        #endif
         sessionObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
@@ -74,6 +85,8 @@ final class CaptureController: NSObject, ObservableObject {
     }
 
     func configureAndStart() {
+        wantsRunning = true
+        runtimeRestarts = 0
         observeSessionEvents()
         sessionQueue.async { [self] in
             session.beginConfiguration()
@@ -172,7 +185,13 @@ final class CaptureController: NSObject, ObservableObject {
         AVCaptureDevice.default(for: .audio) != nil
     }
 
+    /// The one shutdown path. Stops listening to session events as well, so
+    /// no interruption or runtime error can bring the session back after the
+    /// owner is done with it.
     func stopSession() {
+        wantsRunning = false
+        sessionObservers.forEach(NotificationCenter.default.removeObserver)
+        sessionObservers = []
         sessionQueue.async { [self] in
             if session.isRunning { session.stopRunning() }
         }
@@ -259,7 +278,8 @@ final class CaptureController: NSObject, ObservableObject {
                 let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
                 print("CAP|interrupted|reason=\(reason)")
                 #endif
-                self?.isInterrupted = true
+                guard let self, self.wantsRunning else { return }
+                self.isInterrupted = true
             },
             nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { [weak self] _ in
                 #if DEBUG
@@ -268,28 +288,52 @@ final class CaptureController: NSObject, ObservableObject {
                 self?.resumeSession()
             },
             nc.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: .main) { [weak self] note in
+                let error = note.userInfo?[AVCaptureSessionErrorKey] as? AVError
                 #if DEBUG
-                let err = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
-                print("CAP|runtimeError|\(err?.code ?? -1)|\(err?.localizedDescription ?? "?")")
+                print("CAP|runtimeError|\(error?.code.rawValue ?? -1)|\(error?.localizedDescription ?? "?")")
                 #endif
-                // A runtime error stops the session for good; it never comes
-                // back on its own.
-                self?.isInterrupted = true
-                self?.resumeSession()
+                self?.handleRuntimeError(error)
             },
         ]
     }
 
+    /// A runtime error stops the session, and it never comes back on its own.
+    /// Restarting is only documented to help after a media-services reset;
+    /// any other error (no usable mic, device gone) fails again the moment
+    /// the session starts, posting another error — restarting those is what
+    /// used to spin the CPU hundreds of times a second. Even resets get a few
+    /// spaced-out attempts, then the session stays down and shows as stopped.
+    private func handleRuntimeError(_ error: AVError?) {
+        guard wantsRunning else { return }
+        isInterrupted = true
+        guard error?.code == .mediaServicesWereReset else { return }
+        let now = CACurrentMediaTime()
+        if now - lastRuntimeErrorAt > 30 { runtimeRestarts = 0 }
+        lastRuntimeErrorAt = now
+        guard runtimeRestarts < maxRuntimeRestarts else { return }
+        runtimeRestarts += 1
+        let delay = 0.5 * pow(2, Double(runtimeRestarts - 1)) // 0.5s, 1s, 2s
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.resumeSession()
+        }
+    }
+
     /// Get the session running again and tell the owner, so the speech
-    /// pipeline can be rebuilt. Safe to call when it is already running.
+    /// pipeline can be rebuilt. Safe to call when it is already running; does
+    /// nothing once the owner has stopped the session. Main thread only —
+    /// checking `wantsRunning` here and enqueueing on the serial session queue
+    /// keeps a late resume ordered before stopSession's stop, never after.
     private func resumeSession() {
-        sessionQueue.async { [self] in
-            if !session.isRunning { session.startRunning() }
-            let running = session.isRunning
+        guard wantsRunning else { return }
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            if !self.session.isRunning { self.session.startRunning() }
+            let running = self.session.isRunning
             #if DEBUG
             print("CAP|resume|running=\(running)")
             #endif
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.wantsRunning else { return }
                 self.isInterrupted = !running
                 if running { self.onInterruptionEnded?() }
             }
