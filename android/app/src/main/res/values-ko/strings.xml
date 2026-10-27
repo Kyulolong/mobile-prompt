@@ -85,6 +85,6 @@
     <string name="speed">속도</string>
     <string name="about_footer">음성인식은 전부 이 기기 안에서 처리돼요. 수집하는 정보는 없어요.</string>
     <string name="section_perplz">퍼플즈</string>
-    <string name="perplz_make_script">퍼플즈에서 대본 만들기</string>
-    <string name="perplz_footer">프로젝트 기록으로 소개 영상 대본을 만들고, 이 앱으로 읽고 찍어서 퍼플즈에 붙일 수 있어요.</string>
+    <string name="perplz_make_script">퍼플즈 알아보기</string>
+    <string name="perplz_footer">팀 프로젝트를 기록하고 포트폴리오로 만드는 퍼플즈가 만든 앱이에요.</string>
 </resources>

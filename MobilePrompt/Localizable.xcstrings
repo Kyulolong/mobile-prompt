@@ -3,7 +3,7 @@
   "strings" : {
     "보이스 프롬프터" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Voice Prompter" } } } },
     "아직 대본이 없어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No scripts yet" } } } },
-    "새 대본을 만들거나, 다른 앱에서\n텍스트를 공유해 가져올 수 있어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Create a new script,   or share text\nfrom another app to import it" } } } },
+    "새 대본을 만들거나, 다른 앱에서\n텍스트를 공유해 가져올 수 있어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Create a new script,    or share text\nfrom another app to import it" } } } },
     "새 대본" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "New Script" } } } },
     "여기에 대본을 붙여넣으세요…" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Paste your script here…" } } } },
     "샘플 넣기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Sample" } } } },
@@ -49,7 +49,7 @@
     "좌우 폭" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Width" } } } },
     "위 여백" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Top Margin" } } } },
     "아래 여백" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Bottom Margin" } } } },
-    "가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "In landscape,   the script is placed at 55% width on the camera side automatically." } } } },
+    "가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "In landscape,    the script is placed at 55% width on the camera side automatically." } } } },
     "속도" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Speed" } } } },
     "여러 개 선택" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Select Multiple" } } } },
     "삭제" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } } } },
@@ -75,8 +75,8 @@
     "영상·자막 공유" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Share Video & Subtitles" } } } },
     "퍼플즈" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Perplz" } } } },
     "퍼플즈로 돌아가기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Back to Perplz" } } } },
-    "퍼플즈에서 대본 만들기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Make a script in Perplz" } } } },
-    "프로젝트 기록으로 소개 영상 대본을 만들고, 이 앱으로 읽고 찍어서 퍼플즈에 붙일 수 있어요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Turn your project record into an intro-video script,   read and record it here,   and attach it to Perplz." } } } }
+    "퍼플즈 알아보기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "About Perplz" } } } },
+    "팀 프로젝트를 기록하고 포트폴리오로 만드는 퍼플즈가 만든 앱이에요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Made by Perplz,  where teams record their projects and turn them into portfolios." } } } }
   },
   "version" : "1.0"
 }

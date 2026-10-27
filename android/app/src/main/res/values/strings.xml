@@ -85,6 +85,6 @@
     <string name="speed">Speed</string>
     <string name="about_footer">Speech recognition runs entirely on this device. Nothing is collected.</string>
     <string name="section_perplz">Perplz</string>
-    <string name="perplz_make_script">Make a script in Perplz</string>
-    <string name="perplz_footer">Turn your project record into an intro-video script, read and record it here, and attach it to Perplz.</string>
+    <string name="perplz_make_script">About Perplz</string>
+    <string name="perplz_footer">Made by Perplz, where teams record their projects and turn them into portfolios.</string>
 </resources>

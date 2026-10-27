@@ -86,11 +86,11 @@ struct SettingsSheet: View {
                     }
                 }
                 Section {
-                    Link("퍼플즈에서 대본 만들기", destination: URL(string: "https://perplz.com")!)
+                    Link("퍼플즈 알아보기", destination: URL(string: "https://perplz.com")!)
                 } header: {
                     Text("퍼플즈")
                 } footer: {
-                    Text("프로젝트 기록으로 소개 영상 대본을 만들고, 이 앱으로 읽고 찍어서 퍼플즈에 붙일 수 있어요.")
+                    Text("팀 프로젝트를 기록하고 포트폴리오로 만드는 퍼플즈가 만든 앱이에요.")
                 }
             }
             .navigationTitle(AppSettings.tr("설정"))
