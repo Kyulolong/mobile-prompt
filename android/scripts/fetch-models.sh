@@ -14,6 +14,11 @@ if [ ! -f "$AAR" ]; then
   curl -L --progress-bar -o "$AAR" \
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$SHERPA_VERSION/sherpa-onnx-$SHERPA_VERSION.aar"
 fi
+# CI only needs the library to compile; the ~180 MB models are for devices.
+if [ "${1:-}" = "--aar-only" ]; then
+  echo "AAR ready: $AAR"
+  exit 0
+fi
 
 DEST="speechmodels/src/main/assets/models"
 BASE="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
