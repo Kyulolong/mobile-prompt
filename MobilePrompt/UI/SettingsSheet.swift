@@ -86,6 +86,18 @@ struct SettingsSheet: View {
                     }
                 }
                 Section {
+                    Picker("화질", selection: $settings.videoQuality) {
+                        Text(verbatim: "1080p").tag("1080p")
+                        Text(verbatim: "4K").tag("4k")
+                    }
+                    Toggle("고효율 비디오 (HEVC)", isOn: $settings.hevc)
+                    Toggle("볼륨 버튼으로 녹화 시작·정지", isOn: $settings.hardwareShutter)
+                } header: {
+                    Text("촬영")
+                } footer: {
+                    Text("4K는 파일이 약 4배 크고 긴 촬영에서 기기가 뜨거워질 수 있어요. HEVC는 파일이 작아지지만 일부 PC·웹에서 재생이 안 될 수 있어요.")
+                }
+                Section {
                     Link("퍼플즈 알아보기", destination: URL(string: "https://perplz.com")!)
                 } header: {
                     Text("퍼플즈")

@@ -47,6 +47,11 @@ final class CaptureController: NSObject, ObservableObject {
 
     var cameraAvailable: Bool { cameraState == .ready }
 
+    /// Session preset the owner wants; 1080p if the camera can't do it.
+    var preferredPreset: AVCaptureSession.Preset = .hd1920x1080
+    /// HEVC when the device can encode it for the writer; H.264 otherwise.
+    var preferHEVC = false
+
     let session = AVCaptureSession()
     /// Called on the capture data queue for every mic buffer.
     var onAudioBuffer: ((CMSampleBuffer) -> Void)?
@@ -100,7 +105,6 @@ final class CaptureController: NSObject, ObservableObject {
         observeSessionEvents()
         sessionQueue.async { [self] in
             session.beginConfiguration()
-            session.sessionPreset = .hd1920x1080
 
             // Without camera permission the session runs audio-only: voice
             // follow keeps working and the UI can say what is missing instead
@@ -122,8 +126,11 @@ final class CaptureController: NSObject, ObservableObject {
                 session.addInput(input)
                 hasMic = true
             }
+            // Presets are only meaningful once the inputs are in: 4K is granted
+            // only if the front camera has such a format.
+            session.sessionPreset = session.canSetSessionPreset(preferredPreset) ? preferredPreset : .hd1920x1080
             #if DEBUG
-            print("CAP|inputs|camera=\(hasCamera)|mic=\(hasMic)|micDevice=\(AVCaptureDevice.default(for: .audio)?.localizedName ?? "nil")|micAuth=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
+            print("CAP|inputs|camera=\(hasCamera)|mic=\(hasMic)|preset=\(session.sessionPreset.rawValue)|micDevice=\(AVCaptureDevice.default(for: .audio)?.localizedName ?? "nil")|micAuth=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
             #endif
 
             videoOutput.setSampleBufferDelegate(self, queue: dataQueue)
@@ -148,6 +155,24 @@ final class CaptureController: NSObject, ObservableObject {
                 self.cameraState = hasCamera ? .ready : (camAuthorized ? .unavailable : .denied)
                 self.setupRotationCoordinatorIfReady()
             }
+        }
+    }
+
+    /// Quality changed in the in-prompter settings: reconfigure live, unless a
+    /// take is running (its writer is sized for the current frames).
+    func setPreset(_ preset: AVCaptureSession.Preset) {
+        preferredPreset = preset
+        guard !isRecording else { return } // applied by the next configureAndStart
+        sessionQueue.async { [self] in
+            guard !session.inputs.isEmpty else { return }
+            let target = session.canSetSessionPreset(preset) ? preset : .hd1920x1080
+            guard session.sessionPreset != target else { return }
+            session.beginConfiguration()
+            session.sessionPreset = target
+            session.commitConfiguration()
+            #if DEBUG
+            print("CAP|preset|\(session.sessionPreset.rawValue)")
+            #endif
         }
     }
 
@@ -226,7 +251,16 @@ final class CaptureController: NSObject, ObservableObject {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).mov")
             guard let w = try? AVAssetWriter(outputURL: url, fileType: .mov) else { return }
 
-            let vSettings = videoOutput.recommendedVideoSettingsForAssetWriter(writingTo: .mov)
+            // Ask for the codec explicitly: H.264 unless HEVC was chosen and the
+            // device can write it. (Passing a codec the output doesn't list
+            // throws, hence the check.)
+            let wanted: AVVideoCodecType = preferHEVC ? .hevc : .h264
+            let available = videoOutput.availableVideoCodecTypesForAssetWriter(writingTo: .mov)
+            let codec = available.contains(wanted) ? wanted : (available.contains(.h264) ? .h264 : available.first ?? .h264)
+            let vSettings = videoOutput.recommendedVideoSettings(forVideoCodecType: codec, assetWriterOutputFileType: .mov)
+            #if DEBUG
+            print("CAP|record|codec=\(codec.rawValue)|w=\(vSettings?[AVVideoWidthKey] ?? "?")|h=\(vSettings?[AVVideoHeightKey] ?? "?")")
+            #endif
             let v = AVAssetWriterInput(mediaType: .video, outputSettings: vSettings)
             v.expectsMediaDataInRealTime = true
             let aSettings = audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mov)

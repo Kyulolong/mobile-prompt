@@ -3,6 +3,7 @@ package com.teaminpact.mobileprompt
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -33,6 +34,34 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         handleIncoming(intent)
         SelfTest.maybeRun(this, intent)
+    }
+
+    /** True while a volume/camera press we acted on is still held, so its repeats and UP are swallowed too. */
+    private var shutterHeld = false
+
+    /**
+     * Hardware shutter: while the prompter is up, volume buttons (and a
+     * Bluetooth selfie remote, which sends VOLUME_UP or CAMERA) start/stop
+     * recording instead of changing the volume. Elsewhere they do their job.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val isShutterKey = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || event.keyCode == KeyEvent.KEYCODE_CAMERA
+        if (isShutterKey) {
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    if (event.repeatCount == 0) {
+                        shutterHeld = app.hardwareShutter?.invoke() == true
+                    }
+                    if (shutterHeld) return true
+                }
+                KeyEvent.ACTION_UP -> if (shutterHeld) {
+                    shutterHeld = false
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     /**

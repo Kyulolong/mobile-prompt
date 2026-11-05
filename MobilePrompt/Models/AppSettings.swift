@@ -58,6 +58,12 @@ final class AppSettings: ObservableObject {
             }
         }
     }
+    /// Recording quality: "1080p" | "4k" (4K only when the front camera can).
+    @Published var videoQuality: String { didSet { save(videoQuality, "videoQuality") } }
+    /// HEVC (H.265) instead of H.264: smaller files, less compatible.
+    @Published var hevc: Bool { didSet { save(hevc, "hevc") } }
+    /// Volume buttons / Camera Control start and stop recording in the prompter.
+    @Published var hardwareShutter: Bool { didSet { save(hardwareShutter, "hardwareShutter") } }
     /// Reading pace measured by the last rehearsal (syllables/min for Korean,
     /// words/min for English); 0 until measured. Drives the editor's estimate.
     @Published var paceKo: Double { didSet { save(paceKo, "paceKo") } }
@@ -78,6 +84,9 @@ final class AppSettings: ObservableObject {
         voiceMode = d.object(forKey: "voiceMode") as? Bool ?? true
         highlightStyle = d.string(forKey: "highlightStyle") ?? "green"
         appLanguage = d.string(forKey: "appLanguage") ?? "system"
+        videoQuality = d.string(forKey: "videoQuality") ?? "1080p"
+        hevc = d.bool(forKey: "hevc")
+        hardwareShutter = d.object(forKey: "hardwareShutter") as? Bool ?? true
         paceKo = d.object(forKey: "paceKo") as? Double ?? 0
         paceEn = d.object(forKey: "paceEn") as? Double ?? 0
         portraitWidthFrac = d.object(forKey: "portraitWidthFrac") as? Double ?? 1.0

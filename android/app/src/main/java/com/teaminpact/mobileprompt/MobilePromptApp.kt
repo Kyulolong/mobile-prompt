@@ -15,6 +15,11 @@ class MobilePromptApp : Application() {
     lateinit var scriptStore: ScriptStore
         private set
     val pendingOpen = mutableStateOf<PendingOpen?>(null)
+    /**
+     * Set by the prompter while it is on screen: volume/camera keys call it
+     * and are swallowed when it returns true (see MainActivity.dispatchKeyEvent).
+     */
+    @Volatile var hardwareShutter: (() -> Boolean)? = null
 
     override fun onCreate() {
         super.onCreate()

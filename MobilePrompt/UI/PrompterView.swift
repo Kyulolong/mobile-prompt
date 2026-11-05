@@ -159,6 +159,8 @@ struct PrompterView: View {
                 dictationOverlay
             }
         }
+        .background(CaptureEventBridge(enabled: settings.hardwareShutter && vm.capture.cameraAvailable && !showSettings,
+                                       onPress: { vm.hardwareShutterPressed() }))
         .statusBarHidden()
         .task {
             await vm.start(script: script, settings: settings)
@@ -171,6 +173,8 @@ struct PrompterView: View {
         .onChange(of: settings.autoSpeed) { _, v in vm.scroll.autoPxPerSec = v }
         .onChange(of: settings.readingLineFrac) { _, v in vm.scroll.readingLineFrac = v }
         .onChange(of: settings.highlightStyle) { _, v in vm.setHighlightStyle(v) }
+        .onChange(of: settings.videoQuality) { _, q in vm.setVideoQuality(q) }
+        .onChange(of: settings.hevc) { _, on in vm.setHEVC(on) }
         .sheet(isPresented: $showSettings) { SettingsSheet(compact: true) }
         .alert("녹화를 멈출까요?", isPresented: $confirmClose) {
             Button("멈추고 닫기", role: .destructive) {

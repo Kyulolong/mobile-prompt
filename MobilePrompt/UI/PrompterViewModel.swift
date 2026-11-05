@@ -261,6 +261,8 @@ final class PrompterViewModel: ObservableObject {
                 self.startVoicePipeline()
             }
         }
+        capture.preferredPreset = Self.preset(for: settings.videoQuality)
+        capture.preferHEVC = settings.hevc
         // Reading a script is a long, touch-free activity: never auto-lock.
         UIApplication.shared.isIdleTimerDisabled = true
         capture.configureAndStart()
@@ -359,6 +361,24 @@ final class PrompterViewModel: ObservableObject {
     func togglePause() {
         isPaused.toggle()
         scroll.paused = isPaused
+    }
+
+    static func preset(for quality: String) -> AVCaptureSession.Preset {
+        quality == "4k" ? .hd4K3840x2160 : .hd1920x1080
+    }
+
+    func setVideoQuality(_ quality: String) {
+        capture.setPreset(Self.preset(for: quality))
+    }
+
+    func setHEVC(_ on: Bool) {
+        capture.preferHEVC = on
+    }
+
+    /// Volume button / Camera Control: the same thing the big button does,
+    /// or "finish" while rehearsing.
+    func hardwareShutterPressed() {
+        if rehearsalActive { finishRehearsal() } else { recordTapped() }
     }
 
     /// Record button: idle → countdown → recording. Tapping mid-countdown cancels.

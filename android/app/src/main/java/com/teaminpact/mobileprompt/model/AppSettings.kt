@@ -29,6 +29,10 @@ class AppSettings(context: Context) {
     /** UI language: "system" | "ko" | "en" — applies immediately. */
     var appLanguage: String by pref("appLanguage", "system")
         private set
+    /** Recording quality: "1080p" | "4k" (4K only when the camera can). */
+    var videoQuality: String by pref("videoQuality", "1080p")
+    /** Volume buttons start and stop recording in the prompter. */
+    var hardwareShutter: Boolean by pref("hardwareShutter", true)
     /**
      * Reading pace measured by the last rehearsal (syllables/min for Korean,
      * words/min for English); 0 until measured. Drives the editor's estimate.

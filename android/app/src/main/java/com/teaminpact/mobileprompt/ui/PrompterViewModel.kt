@@ -352,6 +352,11 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         scroll.paused = isPaused
     }
 
+    /** Volume button / selfie remote: the same thing the big button does, or "finish" while rehearsing. */
+    fun hardwareShutterPressed() {
+        if (rehearsalActive) finishRehearsal() else recordTapped()
+    }
+
     /** Record button: idle → countdown → recording. Tapping mid-countdown cancels. */
     fun recordTapped() {
         if (rehearsalActive) return

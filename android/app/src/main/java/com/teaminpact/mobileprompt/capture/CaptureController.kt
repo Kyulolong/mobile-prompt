@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraState
+import androidx.camera.core.DynamicRange
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCase
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -73,6 +74,11 @@ class CaptureController(private val context: Context) {
     var lastRecordingName: String? = null
         private set
 
+    /** "1080p" | "4k"; read at bind time. Use [changeQuality] to change it live. */
+    var quality: String = "1080p"
+    private var boundOwner: LifecycleOwner? = null
+    private var boundPreview: PreviewView? = null
+
     var onRecordingStarted: (() -> Unit)? = null
     /** Called when a recording ends, before [saveMessage] is set. */
     var onRecordingFinished: (() -> Unit)? = null
@@ -99,6 +105,8 @@ class CaptureController(private val context: Context) {
 
     /** Bind preview + recorder to the owner's lifecycle; CameraX handles pause/resume. */
     fun bind(owner: LifecycleOwner, previewView: PreviewView) {
+        boundOwner = owner
+        boundPreview = previewView
         val generation = ++bindGeneration
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
@@ -118,13 +126,13 @@ class CaptureController(private val context: Context) {
                 }
             }
             val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+            // 4K is a wish: if this camera has no UHD profile, CameraX steps
+            // down from FHD like before.
+            val wanted = if (quality == "4k") listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD)
+                         else listOf(Quality.FHD, Quality.HD, Quality.SD, Quality.LOWEST)
+            val floor = if (quality == "4k") Quality.FHD else Quality.SD
             val recorder = Recorder.Builder()
-                .setQualitySelector(
-                    QualitySelector.fromOrderedList(
-                        listOf(Quality.FHD, Quality.HD, Quality.SD, Quality.LOWEST),
-                        FallbackStrategy.lowerQualityOrHigherThan(Quality.SD),
-                    ),
-                )
+                .setQualitySelector(QualitySelector.fromOrderedList(wanted, FallbackStrategy.lowerQualityOrHigherThan(floor)))
                 .build()
             val vc = VideoCapture.withOutput(recorder)
             previewView.display?.let { vc.targetRotation = it.rotation }
@@ -146,6 +154,8 @@ class CaptureController(private val context: Context) {
                 }
                 cameraStatus = CameraStatus.READY
                 cameraState = camera.cameraInfo.cameraState.also { it.observe(owner, cameraStateObserver) }
+                Log.d(TAG, "quality=$quality supported=" +
+                    Recorder.getVideoCapabilities(camera.cameraInfo).getSupportedQualities(DynamicRange.SDR))
                 if (videoCapture != null) followDisplayRotation(previewView)
             } catch (e: Exception) {
                 Log.e(TAG, "bind failed", e)
@@ -184,6 +194,16 @@ class CaptureController(private val context: Context) {
         displayListener = null
     }
 
+    /** Quality changed in the in-prompter settings: rebind, unless a take is running. */
+    fun changeQuality(q: String) {
+        if (q == quality) return
+        quality = q
+        if (isRecording) return // picked up by the next bind
+        val owner = boundOwner ?: return
+        val preview = boundPreview ?: return
+        bind(owner, preview)
+    }
+
     /** Release the camera (and with it the privacy indicator); stops a recording in progress. */
     fun unbind() {
         bindGeneration++
@@ -193,6 +213,8 @@ class CaptureController(private val context: Context) {
         provider?.unbind(*useCases)
         useCases = emptyArray()
         videoCapture = null
+        boundOwner = null
+        boundPreview = null
     }
 
     // MARK: recording

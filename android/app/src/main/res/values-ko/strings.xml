@@ -126,4 +126,9 @@
     <string name="import_text_file">텍스트 파일 가져오기…</string>
     <string name="search_scripts">대본 검색</string>
     <string name="import_failed">파일을 읽지 못했어요</string>
+    <!-- Recording options -->
+    <string name="section_recording">촬영</string>
+    <string name="quality">화질</string>
+    <string name="hardware_shutter">볼륨 버튼으로 녹화 시작·정지</string>
+    <string name="recording_footer">4K는 파일이 약 4배 크고 긴 촬영에서 기기가 뜨거워질 수 있어요.</string>
 </resources>

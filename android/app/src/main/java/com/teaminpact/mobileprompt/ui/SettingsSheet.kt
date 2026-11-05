@@ -92,6 +92,18 @@ fun SettingsSheet(settings: AppSettings, compact: Boolean, onDismiss: () -> Unit
             SectionTitle(stringResource(R.string.section_auto))
             SliderRow(stringResource(R.string.speed), settings.autoSpeed.toFloat(), 10f..150f, 0, "${settings.autoSpeed.roundToInt()}") { settings.autoSpeed = it.toDouble() }
 
+            SectionTitle(stringResource(R.string.section_recording))
+            Text(stringResource(R.string.quality), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QualityChip("1080p", "1080p", settings)
+                QualityChip("4k", "4K", settings)
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.hardware_shutter), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Switch(checked = settings.hardwareShutter, onCheckedChange = { settings.hardwareShutter = it })
+            }
+            Footer(stringResource(R.string.recording_footer))
+
             SectionTitle(stringResource(R.string.section_perplz))
             val context = androidx.compose.ui.platform.LocalContext.current
             TextButton(
@@ -155,6 +167,16 @@ private fun ColorChip(style: String, label: String, settings: AppSettings) {
     FilterChip(
         selected = settings.highlightStyle == style,
         onClick = { settings.highlightStyle = style },
+        label = { Text(label) },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QualityChip(value: String, label: String, settings: AppSettings) {
+    FilterChip(
+        selected = settings.videoQuality == value,
+        onClick = { settings.videoQuality = value },
         label = { Text(label) },
     )
 }

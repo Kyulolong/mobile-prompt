@@ -90,6 +90,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.teaminpact.mobileprompt.MobilePromptApp
 import com.teaminpact.mobileprompt.R
 import com.teaminpact.mobileprompt.capture.CaptureController
 import com.teaminpact.mobileprompt.engine.DisplayToken
@@ -165,6 +166,22 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         vm.scroll.readingLineFrac = settings.readingLineFrac.toFloat()
     }
     LaunchedEffect(settings.highlightStyle) { vm.setHighlightStyle(settings.highlightStyle) }
+    LaunchedEffect(settings.videoQuality) { vm.capture.changeQuality(settings.videoQuality) }
+
+    // Hardware shutter: registered only while this screen is up, and only
+    // swallowed when there is something to do (camera ready or rehearsing).
+    val app = context.applicationContext as MobilePromptApp
+    DisposableEffect(settings.hardwareShutter) {
+        app.hardwareShutter = if (!settings.hardwareShutter) null else ({
+            if (!showSettings && (vm.capture.canRecord || vm.rehearsalActive)) {
+                vm.hardwareShutterPressed()
+                true
+            } else {
+                false
+            }
+        })
+        onDispose { app.hardwareShutter = null }
+    }
     var lastVoice by remember { mutableStateOf(settings.voiceMode) }
     LaunchedEffect(settings.voiceMode) {
         if (settings.voiceMode != lastVoice) {
@@ -206,6 +223,7 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                         PreviewView(ctx).apply {
                             scaleType = PreviewView.ScaleType.FILL_CENTER
                             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                            vm.capture.quality = settings.videoQuality
                             vm.capture.bind(lifecycleOwner, this)
                         }
                     },

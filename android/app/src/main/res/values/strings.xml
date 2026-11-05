@@ -126,4 +126,9 @@
     <string name="import_text_file">Import Text File…</string>
     <string name="search_scripts">Search scripts</string>
     <string name="import_failed">Couldn\'t read the file</string>
+    <!-- Recording options -->
+    <string name="section_recording">Recording</string>
+    <string name="quality">Quality</string>
+    <string name="hardware_shutter">Volume buttons start and stop recording</string>
+    <string name="recording_footer">4K files are about 4× larger and long takes can heat the phone.</string>
 </resources>
