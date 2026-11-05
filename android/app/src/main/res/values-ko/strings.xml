@@ -115,4 +115,10 @@
     <string name="go_record">녹화하러 가기</string>
     <string name="take_report">이번 테이크 결과</string>
     <string name="nothing_read">읽은 내용이 없어요</string>
+    <!-- Editor stats -->
+    <string name="stats_line">%1$s자 · %2$s어절 · 약 %3$s</string>
+    <string name="duration_min_sec">%1$s분 %2$s초</string>
+    <string name="duration_sec">%1$s초</string>
+    <string name="pace_typical">(보통 속도)</string>
+    <string name="pace_yours">(내 속도)</string>
 </resources>

@@ -115,4 +115,10 @@
     <string name="go_record">Go Record</string>
     <string name="take_report">This Take\'s Results</string>
     <string name="nothing_read">Nothing was read yet</string>
+    <!-- Editor stats -->
+    <string name="stats_line">%1$s chars · %2$s words · ~%3$s</string>
+    <string name="duration_min_sec">%1$s min %2$s s</string>
+    <string name="duration_sec">%1$s s</string>
+    <string name="pace_typical">(typical pace)</string>
+    <string name="pace_yours">(your pace)</string>
 </resources>

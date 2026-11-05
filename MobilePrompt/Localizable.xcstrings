@@ -102,7 +102,12 @@
     "다시 연습" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Rehearse Again" } } } },
     "녹화하러 가기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Go Record" } } } },
     "이번 테이크 결과" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "This Take's Results" } } } },
-    "읽은 내용이 없어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing was read yet" } } } }
+    "읽은 내용이 없어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing was read yet" } } } },
+    "%@자 · %@어절 · 약 %@" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ chars · %@ words · ~%@" } } } },
+    "%@분 %@초" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ min %@ s" } } } },
+    "%@초" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ s" } } } },
+    "(보통 속도)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "(typical pace)" } } } },
+    "(내 속도)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "(your pace)" } } } }
   },
   "version" : "1.0"
 }

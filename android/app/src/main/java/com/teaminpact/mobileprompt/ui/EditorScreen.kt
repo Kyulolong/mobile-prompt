@@ -48,13 +48,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.teaminpact.mobileprompt.R
+import com.teaminpact.mobileprompt.engine.ScriptStats
 import com.teaminpact.mobileprompt.model.AppSettings
 import com.teaminpact.mobileprompt.model.ScriptStore
+import java.text.NumberFormat
 
 /** Edits one script from the library and launches the prompter. Saves on every keystroke. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onStart: (String) -> Unit) {
+fun EditorScreen(scriptId: String, store: ScriptStore, settings: AppSettings, onBack: () -> Unit, onStart: (String) -> Unit) {
     val script = store.script(scriptId)
     val text = script?.text ?: ""
     val focus = LocalFocusManager.current
@@ -101,6 +103,14 @@ fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onSta
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             )
+            // Counts and a time estimate — the pace comes from the reader's last
+            // rehearsal once there has been one.
+            Text(
+                statsLine(ScriptStats.compute(text, settings.paceKo, settings.paceEn)),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Row(
                 Modifier.fillMaxWidth().padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -141,6 +151,17 @@ fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onSta
     if (showMarkupHelp) {
         MarkupHelpDialog(onDismiss = { showMarkupHelp = false })
     }
+}
+
+/** "1,234자 · 210어절 · 약 1분 20초 (보통 속도)" */
+@Composable
+private fun statsLine(stats: ScriptStats): String {
+    val nf = NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0])
+    val total = Math.round(stats.seconds).toInt()
+    val duration = if (total >= 60) stringResource(R.string.duration_min_sec, (total / 60).toString(), (total % 60).toString())
+                   else stringResource(R.string.duration_sec, total.toString())
+    return stringResource(R.string.stats_line, nf.format(stats.characters), nf.format(stats.words), duration) +
+        " " + stringResource(if (stats.measured) R.string.pace_yours else R.string.pace_typical)
 }
 
 /** The two bits of markup a script understands (see ScriptMarkup). */

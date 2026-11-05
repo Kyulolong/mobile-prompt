@@ -40,6 +40,15 @@ struct ScriptEditorView: View {
                     }
                 }
 
+            // Counts and a time estimate — the pace comes from the reader's last
+            // rehearsal once there has been one.
+            Text(ScriptStats.compute(script: textBinding.wrappedValue, paceKo: settings.paceKo, paceEn: settings.paceEn).line)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
             HStack(spacing: 12) {
                 Button {
                     textBinding.wrappedValue = AppSettings.sampleScript

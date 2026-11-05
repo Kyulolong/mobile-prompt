@@ -70,17 +70,33 @@ enum ScriptMarkup {
 
     /// The engine's own split: runs of whitespace separate tokens.
     static func tokenize(_ script: String) -> [String] {
-        var parts: [String] = []
+        tokenizeWithBreaks(script).map(\.raw)
+    }
+
+    /// Same split, with the engine's `breakBefore` (a line break somewhere in
+    /// the whitespace before the token). Lets stats run without the engine.
+    static func tokenizeWithBreaks(_ script: String) -> [DisplayToken] {
+        var out: [DisplayToken] = []
         var current = ""
+        var currentBreak = false
+        var pendingBreak = false
         for c in script {
             if isWhitespace(c) {
-                if !current.isEmpty { parts.append(current); current = "" }
+                if !current.isEmpty {
+                    out.append(DisplayToken(raw: current, breakBefore: currentBreak))
+                    current = ""
+                }
+                if c.unicodeScalars.contains("\n") { pendingBreak = true }
             } else {
+                if current.isEmpty {
+                    currentBreak = pendingBreak
+                    pendingBreak = false
+                }
                 current.append(c)
             }
         }
-        if !current.isEmpty { parts.append(current) }
-        return parts
+        if !current.isEmpty { out.append(DisplayToken(raw: current, breakBefore: currentBreak)) }
+        return out
     }
 
     /// Decide display text and kind for the engine's tokens, in order. The

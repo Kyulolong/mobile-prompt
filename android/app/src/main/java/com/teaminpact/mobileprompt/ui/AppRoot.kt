@@ -42,6 +42,7 @@ fun AppRoot(settings: AppSettings, store: ScriptStore, pendingOpen: MutableState
         is Screen.Editor -> {
             BackHandler { screen = Screen.Library }
             EditorScreen(
+                settings = settings,
                 scriptId = s.scriptId,
                 store = store,
                 onBack = { screen = Screen.Library },

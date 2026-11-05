@@ -63,18 +63,34 @@ object ScriptMarkup {
     }
 
     /** The engine's own split: runs of whitespace separate tokens. */
-    fun tokenize(script: String): List<String> {
-        val parts = ArrayList<String>()
+    fun tokenize(script: String): List<String> = tokenizeWithBreaks(script).map { it.raw }
+
+    /**
+     * Same split, with the engine's `breakBefore` (a line break somewhere in
+     * the whitespace before the token). Lets stats run without the engine.
+     */
+    fun tokenizeWithBreaks(script: String): List<DisplayToken> {
+        val out = ArrayList<DisplayToken>()
         val current = StringBuilder()
+        var currentBreak = false
+        var pendingBreak = false
         for (c in script) {
             if (c in WHITESPACE) {
-                if (current.isNotEmpty()) { parts.add(current.toString()); current.setLength(0) }
+                if (current.isNotEmpty()) {
+                    out.add(DisplayToken(current.toString(), currentBreak))
+                    current.setLength(0)
+                }
+                if (c == '\n') pendingBreak = true
             } else {
+                if (current.isEmpty()) {
+                    currentBreak = pendingBreak
+                    pendingBreak = false
+                }
                 current.append(c)
             }
         }
-        if (current.isNotEmpty()) parts.add(current.toString())
-        return parts
+        if (current.isNotEmpty()) out.add(DisplayToken(current.toString(), currentBreak))
+        return out
     }
 
     /**
