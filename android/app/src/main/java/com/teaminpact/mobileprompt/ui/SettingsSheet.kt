@@ -91,6 +91,7 @@ fun SettingsSheet(settings: AppSettings, compact: Boolean, onDismiss: () -> Unit
                 Switch(checked = settings.stageMode, onCheckedChange = { settings.stageMode = it })
             }
             SliderRow(stringResource(R.string.stage_font_size), settings.stageFontSize.toFloat(), 24f..72f, 47, "${settings.stageFontSize.roundToInt()}") { settings.stageFontSize = it.roundToInt().toDouble() }
+            SliderRow(stringResource(R.string.pip_font_size), settings.pipFontSize.toFloat(), 16f..40f, 23, "${settings.pipFontSize.roundToInt()}") { settings.pipFontSize = it.roundToInt().toDouble() }
             Footer(stringResource(R.string.stage_mode_footer))
 
             SectionTitle(stringResource(R.string.section_box))

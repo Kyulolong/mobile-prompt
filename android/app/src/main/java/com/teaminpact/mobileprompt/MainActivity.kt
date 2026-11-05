@@ -1,9 +1,15 @@
 package com.teaminpact.mobileprompt
 
+import android.app.PictureInPictureParams
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -16,9 +22,24 @@ import com.teaminpact.mobileprompt.ui.MobilePromptTheme
 class MainActivity : AppCompatActivity() {
     private val app get() = application as MobilePromptApp
 
+    /** Stage-mode prompter supplies PiP params while it is up (see PrompterScreen). */
+    var pipParamsProvider: (() -> PictureInPictureParams?)? = null
+    /** The PiP window's buttons arrive here as broadcast actions. */
+    var pipActionHandler: ((String) -> Unit)? = null
+    private val pipReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.action?.let { pipActionHandler?.invoke(it) }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ContextCompat.registerReceiver(
+            this, pipReceiver,
+            IntentFilter().apply { PIP_ACTIONS.forEach(::addAction) },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         if (savedInstanceState == null) {
             handleIncoming(intent)
             SelfTest.maybeRun(this, intent)
@@ -34,6 +55,19 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         handleIncoming(intent)
         SelfTest.maybeRun(this, intent)
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(pipReceiver)
+        super.onDestroy()
+    }
+
+    /** Android 11 and below have no auto-enter: float when the user goes Home. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            pipParamsProvider?.invoke()?.let { enterPictureInPictureMode(it) }
+        }
     }
 
     /** True while a volume/camera press we acted on is still held, so its repeats and UP are swallowed too. */
@@ -92,5 +126,12 @@ class MainActivity : AppCompatActivity() {
         }
         // Consume so a configuration change doesn't re-import.
         intent.action = null
+    }
+
+    companion object {
+        const val ACTION_PIP_PAUSE = "com.teaminpact.mobileprompt.PIP_PAUSE"
+        const val ACTION_PIP_BACK = "com.teaminpact.mobileprompt.PIP_BACK"
+        const val ACTION_PIP_FORWARD = "com.teaminpact.mobileprompt.PIP_FORWARD"
+        val PIP_ACTIONS = listOf(ACTION_PIP_BACK, ACTION_PIP_PAUSE, ACTION_PIP_FORWARD)
     }
 }

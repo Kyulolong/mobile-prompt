@@ -133,10 +133,17 @@
     <string name="recording_footer">4K는 파일이 약 4배 크고 긴 촬영에서 기기가 뜨거워질 수 있어요.</string>
     <!-- Stage mode -->
     <string name="stage_mode">무대 모드</string>
-    <string name="stage_mode_footer">카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요.</string>
+    <string name="stage_mode_footer">카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요. 플로팅은 대본을 작은 창(PiP)으로 띄워 다른 앱 위에서 읽게 해 줘요.</string>
     <string name="camera_off">카메라 끄기</string>
     <string name="camera_on">카메라 켜기</string>
     <string name="stage_font_size">무대 글자 크기</string>
     <string name="pip_font_size">플로팅 글자 크기</string>
     <string name="mic_taken_auto">마이크 중단됨 · 자동 스크롤</string>
+    <!-- Floating (PiP) -->
+    <string name="floating">플로팅</string>
+    <string name="start_floating">플로팅 시작</string>
+    <string name="pip_unsupported">이 기기는 플로팅(PiP)을 지원하지 않아요.</string>
+    <string name="pip_disabled_in_settings">설정에서 보이스 프롬프터의 PiP를 허용해 주세요.</string>
+    <string name="pip_back">단어 5개 뒤로</string>
+    <string name="pip_forward">단어 5개 앞으로</string>
 </resources>

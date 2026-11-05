@@ -104,6 +104,17 @@ class ScrollModel {
         lastWrittenTop = s.promptScrollTop
     }
 
+    /**
+     * After a relayout (rotation, PiP in/out, font change): put the reading
+     * line back on the target at once instead of gliding there, keeping the creep.
+     */
+    fun resnap() {
+        val s = surface ?: return
+        if (offsets.isEmpty()) return
+        s.promptScrollTop = y(prevDesired) - s.promptViewportHeight * readingLineFrac
+        lastWrittenTop = s.promptScrollTop
+    }
+
     private fun y(index: Double): Float {
         if (offsets.isEmpty()) return 0f
         val i = maxOf(0, minOf(offsets.size - 1, index.toInt()))

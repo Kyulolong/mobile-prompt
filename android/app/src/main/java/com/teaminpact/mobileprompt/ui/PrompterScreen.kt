@@ -2,10 +2,17 @@ package com.teaminpact.mobileprompt.ui
 
 import android.Manifest
 import android.app.Application
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.util.Rational
 import android.view.Surface
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +47,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
@@ -70,6 +78,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -83,6 +93,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.PictureInPictureModeChangedInfo
+import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
@@ -91,12 +103,14 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.teaminpact.mobileprompt.MainActivity
 import com.teaminpact.mobileprompt.MobilePromptApp
 import com.teaminpact.mobileprompt.R
 import com.teaminpact.mobileprompt.capture.CaptureController
 import com.teaminpact.mobileprompt.engine.DisplayToken
 import com.teaminpact.mobileprompt.model.AppSettings
 import com.teaminpact.mobileprompt.speech.SpeechEngine
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 /**
@@ -116,6 +130,17 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var showSettings by remember { mutableStateOf(false) }
+
+    // Floating (Picture-in-Picture), stage mode only. The activity keeps
+    // running in PiP — and with it this ViewModel, the scroll loop and the
+    // mic — so nothing here needs a service.
+    val activity = context as? MainActivity
+    val inPip = rememberIsInPipMode(activity)
+    val pipSupported = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) }
+    var scriptBounds by remember { mutableStateOf<android.graphics.Rect?>(null) }
+    var pipDenied by remember { mutableStateOf(false) }
+    fun currentPipParams(): PictureInPictureParams? =
+        if (settings.stageMode && pipSupported) pipParams(context, scriptBounds, vm.isPaused) else null
 
     fun granted(p: String) = context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
 
@@ -210,6 +235,46 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         vm.stopAll()
         onClose()
     }
+
+    // Keep the system's PiP params current (aspect, fly-out rect, buttons,
+    // auto-enter on Home). A camera session must never float: its preview
+    // can't continue and a take must not be cut short by a Home swipe.
+    LaunchedEffect(settings.stageMode, scriptBounds, vm.isPaused, pipSupported) {
+        if (activity == null || !pipSupported) return@LaunchedEffect
+        val params = currentPipParams()
+        if (params != null) {
+            activity.setPictureInPictureParams(params)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            activity.setPictureInPictureParams(PictureInPictureParams.Builder().setAutoEnterEnabled(false).build())
+        }
+    }
+    DisposableEffect(activity) {
+        activity?.pipParamsProvider = { currentPipParams() }
+        activity?.pipActionHandler = { action ->
+            when (action) {
+                MainActivity.ACTION_PIP_PAUSE -> vm.setPausedFromPip(!vm.isPaused)
+                MainActivity.ACTION_PIP_BACK -> vm.jumpTokens(-5)
+                MainActivity.ACTION_PIP_FORWARD -> vm.jumpTokens(5)
+            }
+        }
+        onDispose {
+            activity?.pipParamsProvider = null
+            activity?.pipActionHandler = null
+            if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                activity.setPictureInPictureParams(PictureInPictureParams.Builder().setAutoEnterEnabled(false).build())
+            }
+        }
+    }
+    // Leaving PiP: "expand" brings the activity back to the front; the X
+    // button leaves it stopped — that is the user closing the prompter.
+    var wasInPip by remember { mutableStateOf(false) }
+    LaunchedEffect(inPip) {
+        if (wasInPip && !inPip) {
+            delay(400) // lifecycle ordering differs across versions; settle first
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) close()
+        }
+        wasInPip = inPip
+    }
     // Closing mid-take (X or back) asks first. "Stop and close" then waits for
     // the save dialog — share / back to Perplz — before the prompter goes away;
     // closing right away would clear the ViewModel and lose that dialog.
@@ -224,8 +289,8 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
     LaunchedEffect(vm.capture.isRecording) { if (!vm.capture.isRecording) confirmClose = false }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // Camera (none at all in stage mode)
-        if (!settings.stageMode) when (vm.capture.cameraStatus) {
+        // Camera (none at all in stage mode, nor in the floating window)
+        if (!settings.stageMode && !inPip) when (vm.capture.cameraStatus) {
             CaptureController.CameraStatus.UNAVAILABLE -> Column(
                 Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -257,18 +322,31 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                 }
             }
         }
-        if (!settings.stageMode) {
+        if (!settings.stageMode && !inPip) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.scrimOpacity.toFloat())))
         }
 
-        ScriptBox(vm, settings)
+        // Always the same slot, so the text view (and its scroll position)
+        // survives the PiP transition; only its parameters change.
+        ScriptBox(vm, settings, inPip = inPip, onBounds = { scriptBounds = it })
 
+        if (inPip) {
+            val (statusColor, _) = status(vm, settings)
+            Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(8.dp).clip(CircleShape).background(statusColor))
+        } else {
         Column(Modifier.fillMaxSize().safeDrawingPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             TopBar(vm, settings, onClose = { requestClose() }, onSettings = { showSettings = true })
             AnimatedVisibility(visible = vm.capture.isRecording) { RecordingBadge(vm.capture.recordingSeconds) }
             AnimatedVisibility(visible = vm.rehearsalActive) { RehearsalBadge(vm.rehearsalSeconds) }
             Spacer(Modifier.weight(1f))
-            BottomBar(vm, settings)
+            BottomBar(
+                vm, settings,
+                floatingEnabled = pipSupported,
+                onFloat = {
+                    val params = currentPipParams()
+                    if (activity == null || params == null || !activity.enterPictureInPictureMode(params)) pipDenied = true
+                },
+            )
         }
 
         vm.countdown?.let { c ->
@@ -309,6 +387,29 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                 color = Color.White, textAlign = TextAlign.Center,
             )
         }
+        } // !inPip
+    }
+
+    if (pipDenied) {
+        AlertDialog(
+            onDismissRequest = { pipDenied = false },
+            title = { Text(stringResource(R.string.floating)) },
+            text = { Text(stringResource(if (pipSupported) R.string.pip_disabled_in_settings else R.string.pip_unsupported)) },
+            confirmButton = {
+                if (pipSupported) {
+                    TextButton(onClick = {
+                        pipDenied = false
+                        context.startActivity(
+                            Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS", Uri.fromParts("package", context.packageName, null)) // Settings.ACTION_PICTURE_IN_PICTURE_SETTINGS is hidden
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }) { Text(stringResource(R.string.open_settings)) }
+                } else {
+                    TextButton(onClick = { pipDenied = false }) { Text(stringResource(R.string.ok)) }
+                }
+            },
+            dismissButton = if (pipSupported) ({ TextButton(onClick = { pipDenied = false }) { Text(stringResource(R.string.ok)) } }) else null,
+        )
     }
 
     if (showSettings) {
@@ -391,6 +492,46 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
     }
 }
 
+/** Whether the activity is currently shown as a Picture-in-Picture window. */
+@Composable
+private fun rememberIsInPipMode(activity: MainActivity?): Boolean {
+    var inPip by remember { mutableStateOf(activity?.isInPictureInPictureMode == true) }
+    DisposableEffect(activity) {
+        val observer = Consumer<PictureInPictureModeChangedInfo> { inPip = it.isInPictureInPictureMode }
+        activity?.addOnPictureInPictureModeChangedListener(observer)
+        onDispose { activity?.removeOnPictureInPictureModeChangedListener(observer) }
+    }
+    return inPip
+}
+
+private fun pipParams(context: Context, bounds: android.graphics.Rect?, paused: Boolean): PictureInPictureParams {
+    fun action(code: Int, broadcast: String, icon: Int, title: Int): RemoteAction {
+        val intent = PendingIntent.getBroadcast(
+            context, code, Intent(broadcast).setPackage(context.packageName),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val label = context.getString(title)
+        return RemoteAction(Icon.createWithResource(context, icon), label, label, intent)
+    }
+    val b = PictureInPictureParams.Builder()
+        .setAspectRatio(Rational(16, 9))
+        .setActions(
+            listOf(
+                action(1, MainActivity.ACTION_PIP_BACK, R.drawable.ic_pip_back, R.string.pip_back),
+                if (paused) action(2, MainActivity.ACTION_PIP_PAUSE, R.drawable.ic_pip_play, R.string.resume)
+                else action(2, MainActivity.ACTION_PIP_PAUSE, R.drawable.ic_pip_pause, R.string.pause),
+                action(3, MainActivity.ACTION_PIP_FORWARD, R.drawable.ic_pip_forward, R.string.pip_forward),
+            ),
+        )
+    bounds?.let { b.setSourceRectHint(it) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        b.setAutoEnterEnabled(true)
+        b.setSeamlessResizeEnabled(false)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) b.setTitle(context.getString(R.string.app_name))
+    return b.build()
+}
+
 /** Owns the per-session ViewModel; see PrompterScreen. */
 private class PrompterSession : ViewModelStoreOwner {
     override val viewModelStore = ViewModelStore()
@@ -402,7 +543,7 @@ private class PrompterSession : ViewModelStoreOwner {
  * script narrows to 55% and hugs the camera's side.
  */
 @Composable
-private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
+private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings, inPip: Boolean, onBounds: (android.graphics.Rect) -> Unit) {
     val density = LocalDensity.current.density
     val configuration = LocalConfiguration.current
     val rotation = LocalView.current.display?.rotation ?: Surface.ROTATION_0
@@ -410,12 +551,14 @@ private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
-        // Stage mode has no lens to hug: the box settings apply in every orientation.
-        val hugCamera = landscape && !settings.stageMode
-        val boxWidth = if (hugCamera) maxWidth * 0.55f else maxWidth * settings.portraitWidthFrac.toFloat()
-        val topPad = if (hugCamera) 0.dp else maxHeight * settings.portraitTopFrac.toFloat()
-        val bottomPad = if (hugCamera) 0.dp else maxHeight * settings.portraitBottomFrac.toFloat()
+        // Stage mode has no lens to hug: the box settings apply in every
+        // orientation. The PiP window is all script: full width, centred line.
+        val hugCamera = landscape && !settings.stageMode && !inPip
+        val boxWidth = if (inPip) maxWidth else if (hugCamera) maxWidth * 0.55f else maxWidth * settings.portraitWidthFrac.toFloat()
+        val topPad = if (hugCamera || inPip) 0.dp else maxHeight * settings.portraitTopFrac.toFloat()
+        val bottomPad = if (hugCamera || inPip) 0.dp else maxHeight * settings.portraitBottomFrac.toFloat()
         val bandHeight = maxHeight - topPad - bottomPad
+        val readingLineFrac = if (inPip) 0.5f else settings.readingLineFrac.toFloat()
         // ROTATION_90: the phone's top edge (camera) is on the left.
         val cameraOnLeft = rotation == Surface.ROTATION_90
         @Suppress("UNUSED_VARIABLE") val relayoutKey = configuration.orientation
@@ -430,31 +573,38 @@ private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
                     }
                 },
                 update = { tv ->
-                    val fontPx = ((if (settings.stageMode) settings.stageFontSize else settings.fontSize) * density).toFloat()
+                    val size = if (inPip) settings.pipFontSize else if (settings.stageMode) settings.stageFontSize else settings.fontSize
+                    val fontPx = (size * density).toFloat()
                     if (built.tokens !== vm.tokens || built.fontPx != fontPx) {
                         built.tokens = vm.tokens
                         built.fontPx = fontPx
                         tv.setContent(vm.tokens, fontPx, if (vm.scriptLang == com.teaminpact.mobileprompt.engine.EngineLang.KO) Locale.KOREAN else Locale.ENGLISH)
                     }
-                    tv.setReadingLineFrac(settings.readingLineFrac.toFloat())
+                    tv.setReadingLineFrac(readingLineFrac)
                 },
                 modifier = Modifier
                     .width(boxWidth)
                     .fillMaxSize()
                     .padding(top = topPad, bottom = bottomPad)
-                    .graphicsLayer(scaleX = if (settings.mirrored) -1f else 1f),
+                    .graphicsLayer(scaleX = if (settings.mirrored && !inPip) -1f else 1f)
+                    .onGloballyPositioned { coords ->
+                        val r = coords.boundsInWindow()
+                        onBounds(android.graphics.Rect(r.left.toInt(), r.top.toInt(), r.right.toInt(), r.bottom.toInt()))
+                    },
             )
             if (!hugCamera || cameraOnLeft) Spacer(Modifier.weight(1f, fill = true))
         }
 
         // Reading-line marker, aligned with the (possibly inset) box.
-        Box(
-            Modifier
-                .offset(y = topPad + bandHeight * settings.readingLineFrac.toFloat())
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color.White.copy(alpha = 0.18f)),
-        )
+        if (!inPip) {
+            Box(
+                Modifier
+                    .offset(y = topPad + bandHeight * readingLineFrac)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.18f)),
+            )
+        }
     }
 }
 
@@ -562,7 +712,7 @@ private fun RehearsalBadge(seconds: Int) {
 }
 
 @Composable
-private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
+private fun BottomBar(vm: PrompterViewModel, settings: AppSettings, floatingEnabled: Boolean, onFloat: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (!settings.voiceMode) {
             Row(
@@ -592,7 +742,7 @@ private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            if (settings.stageMode) Spacer(Modifier.size(74.dp)) else RecordButton(vm)
+            if (settings.stageMode) FloatButton(enabled = floatingEnabled, onClick = onFloat) else RecordButton(vm)
             Spacer(Modifier.weight(1f))
             if (!settings.voiceMode) {
                 RoundButton(size = 52.dp, onClick = { vm.togglePause() }) {
@@ -618,6 +768,24 @@ private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
                 }
             }
         }
+    }
+}
+
+/** Stage mode's big button: pop the script out into a floating (PiP) window. */
+@Composable
+private fun FloatButton(enabled: Boolean, onClick: () -> Unit) {
+    val label = stringResource(R.string.start_floating)
+    Box(
+        Modifier
+            .size(74.dp)
+            .alpha(if (enabled) 1f else 0.35f)
+            .border(4.dp, Color.White, CircleShape)
+            .clip(CircleShape)
+            .semantics { contentDescription = label }
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.PictureInPictureAlt, contentDescription = null, Modifier.size(30.dp), tint = Color.White)
     }
 }
 

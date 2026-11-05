@@ -133,10 +133,17 @@
     <string name="recording_footer">4K files are about 4× larger and long takes can heat the phone.</string>
     <!-- Stage mode -->
     <string name="stage_mode">Stage Mode</string>
-    <string name="stage_mode_footer">Script only, no camera. For speeches, lectures, and Zoom or live streams running on another device.</string>
+    <string name="stage_mode_footer">Script only, no camera. For speeches, lectures, and Zoom or live streams on another device. Floating puts the script in a small picture-in-picture window over other apps.</string>
     <string name="camera_off">Camera Off</string>
     <string name="camera_on">Camera On</string>
     <string name="stage_font_size">Stage Font Size</string>
     <string name="pip_font_size">Floating Font Size</string>
     <string name="mic_taken_auto">Mic taken · auto-scroll</string>
+    <!-- Floating (PiP) -->
+    <string name="floating">Floating</string>
+    <string name="start_floating">Start Floating</string>
+    <string name="pip_unsupported">Floating (picture-in-picture) isn\'t available on this device.</string>
+    <string name="pip_disabled_in_settings">Allow picture-in-picture for Voice Prompter in Settings.</string>
+    <string name="pip_back">Back 5 words</string>
+    <string name="pip_forward">Forward 5 words</string>
 </resources>

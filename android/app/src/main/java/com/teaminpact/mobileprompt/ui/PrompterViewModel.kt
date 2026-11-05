@@ -370,7 +370,30 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         if (firstLayout && offsets.isNotEmpty()) {
             scroll.jump(0.0)
             if (voiceMode) highlight(0)
+        } else if (offsets.isNotEmpty()) {
+            // Relayout (rotation, PiP in/out, font change): back on the reading
+            // line at once, and the highlight span survives setContent.
+            scroll.resnap()
+            textView.setHighlight(currentHighlight, highlightColor)
         }
+    }
+
+    /**
+     * PiP's play/pause button pauses the prompter — in voice mode that also
+     * stops listening, so a paused floating window never holds the mic.
+     */
+    fun setPausedFromPip(paused: Boolean) {
+        if (paused == isPaused) return
+        isPaused = paused
+        scroll.paused = paused
+        if (!voiceMode || permissionState != PermissionState.GRANTED) return
+        if (paused) speech.stop() else startVoicePipeline()
+    }
+
+    /** PiP's skip buttons: a few words back or forward. */
+    fun jumpTokens(delta: Int) {
+        if (tokens.isEmpty()) return
+        seekTo((currentHighlight + delta).coerceIn(0, tokens.lastIndex))
     }
 
     fun togglePause() {
@@ -418,6 +441,11 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         val ranges = textView?.ranges ?: return
         val idx = ranges.indexOfLast { it.first <= characterIndex }
         if (idx < 0) return
+        seekTo(idx)
+    }
+
+    /** Manual jump (word tap, PiP skip): aligner, scroll and highlight move together. */
+    private fun seekTo(idx: Int) {
         val now = Clock.now()
         if (voiceMode) {
             if (idx < currentHighlight - 1) events.add(RehearsalEvent.Reread(currentHighlight, idx, now))
