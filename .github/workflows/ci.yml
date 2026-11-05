@@ -57,7 +57,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Fetch the sherpa-onnx AAR (the speech models stay out of CI)
         run: |
-          scripts/fetch-models.sh --aar-only
+          bash scripts/fetch-models.sh --aar-only
           mkdir -p speechmodels/src/main/assets
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
