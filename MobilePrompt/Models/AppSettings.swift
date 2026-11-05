@@ -58,6 +58,10 @@ final class AppSettings: ObservableObject {
             }
         }
     }
+    /// Stage mode: no camera, script only (speeches, Zoom on another device).
+    @Published var stageMode: Bool { didSet { save(stageMode, "stageMode") } }
+    @Published var stageFontSize: Double { didSet { save(stageFontSize, "stageFontSize") } }
+    @Published var pipFontSize: Double { didSet { save(pipFontSize, "pipFontSize") } }
     /// Recording quality: "1080p" | "4k" (4K only when the front camera can).
     @Published var videoQuality: String { didSet { save(videoQuality, "videoQuality") } }
     /// HEVC (H.265) instead of H.264: smaller files, less compatible.
@@ -84,6 +88,9 @@ final class AppSettings: ObservableObject {
         voiceMode = d.object(forKey: "voiceMode") as? Bool ?? true
         highlightStyle = d.string(forKey: "highlightStyle") ?? "green"
         appLanguage = d.string(forKey: "appLanguage") ?? "system"
+        stageMode = d.bool(forKey: "stageMode")
+        stageFontSize = d.object(forKey: "stageFontSize") as? Double ?? 38
+        pipFontSize = d.object(forKey: "pipFontSize") as? Double ?? 26
         videoQuality = d.string(forKey: "videoQuality") ?? "1080p"
         hevc = d.bool(forKey: "hevc")
         hardwareShutter = d.object(forKey: "hardwareShutter") as? Bool ?? true

@@ -74,7 +74,7 @@
     <string name="width">좌우 폭</string>
     <string name="top_margin">위 여백</string>
     <string name="bottom_margin">아래 여백</string>
-    <string name="box_footer">가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요.</string>
+    <string name="box_footer">가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요 (무대 모드 제외).</string>
     <string name="section_language">언어</string>
     <string name="app_language">앱 언어</string>
     <string name="system_default">시스템 설정</string>
@@ -131,4 +131,12 @@
     <string name="quality">화질</string>
     <string name="hardware_shutter">볼륨 버튼으로 녹화 시작·정지</string>
     <string name="recording_footer">4K는 파일이 약 4배 크고 긴 촬영에서 기기가 뜨거워질 수 있어요.</string>
+    <!-- Stage mode -->
+    <string name="stage_mode">무대 모드</string>
+    <string name="stage_mode_footer">카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요.</string>
+    <string name="camera_off">카메라 끄기</string>
+    <string name="camera_on">카메라 켜기</string>
+    <string name="stage_font_size">무대 글자 크기</string>
+    <string name="pip_font_size">플로팅 글자 크기</string>
+    <string name="mic_taken_auto">마이크 중단됨 · 자동 스크롤</string>
 </resources>

@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -124,10 +125,25 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         vm.start(script, settings, micGranted = result[Manifest.permission.RECORD_AUDIO] == true || granted(Manifest.permission.RECORD_AUDIO))
     }
     LaunchedEffect(Unit) {
-        if (granted(Manifest.permission.CAMERA) && granted(Manifest.permission.RECORD_AUDIO)) {
+        // Stage mode never asks for the camera.
+        val needCamera = !settings.stageMode
+        if ((!needCamera || granted(Manifest.permission.CAMERA)) && granted(Manifest.permission.RECORD_AUDIO)) {
             vm.start(script, settings, micGranted = true)
         } else {
-            permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+            permissionLauncher.launch(
+                if (needCamera) arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+                else arrayOf(Manifest.permission.RECORD_AUDIO),
+            )
+        }
+    }
+    var lastStage by remember { mutableStateOf(settings.stageMode) }
+    LaunchedEffect(settings.stageMode) {
+        if (settings.stageMode != lastStage) {
+            lastStage = settings.stageMode
+            vm.setStageMode(settings.stageMode)
+            if (!settings.stageMode && !granted(Manifest.permission.CAMERA)) {
+                permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+            }
         }
     }
 
@@ -208,8 +224,8 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
     LaunchedEffect(vm.capture.isRecording) { if (!vm.capture.isRecording) confirmClose = false }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // Camera
-        when (vm.capture.cameraStatus) {
+        // Camera (none at all in stage mode)
+        if (!settings.stageMode) when (vm.capture.cameraStatus) {
             CaptureController.CameraStatus.UNAVAILABLE -> Column(
                 Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -229,6 +245,9 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+                // Stage mode on: the preview leaves composition and the camera
+                // (and any take) goes with it; off again: the factory rebinds.
+                DisposableEffect(Unit) { onDispose { vm.capture.unbind() } }
                 if (vm.capture.cameraStatus == CaptureController.CameraStatus.STARTING) {
                     Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = Color.White.copy(alpha = 0.35f))
@@ -238,7 +257,9 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                 }
             }
         }
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.scrimOpacity.toFloat())))
+        if (!settings.stageMode) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.scrimOpacity.toFloat())))
+        }
 
         ScriptBox(vm, settings)
 
@@ -389,16 +410,18 @@ private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
-        val boxWidth = if (landscape) maxWidth * 0.55f else maxWidth * settings.portraitWidthFrac.toFloat()
-        val topPad = if (landscape) 0.dp else maxHeight * settings.portraitTopFrac.toFloat()
-        val bottomPad = if (landscape) 0.dp else maxHeight * settings.portraitBottomFrac.toFloat()
+        // Stage mode has no lens to hug: the box settings apply in every orientation.
+        val hugCamera = landscape && !settings.stageMode
+        val boxWidth = if (hugCamera) maxWidth * 0.55f else maxWidth * settings.portraitWidthFrac.toFloat()
+        val topPad = if (hugCamera) 0.dp else maxHeight * settings.portraitTopFrac.toFloat()
+        val bottomPad = if (hugCamera) 0.dp else maxHeight * settings.portraitBottomFrac.toFloat()
         val bandHeight = maxHeight - topPad - bottomPad
         // ROTATION_90: the phone's top edge (camera) is on the left.
         val cameraOnLeft = rotation == Surface.ROTATION_90
         @Suppress("UNUSED_VARIABLE") val relayoutKey = configuration.orientation
 
         Row(Modifier.fillMaxSize()) {
-            if (!landscape || !cameraOnLeft) Spacer(Modifier.weight(1f, fill = true))
+            if (!hugCamera || !cameraOnLeft) Spacer(Modifier.weight(1f, fill = true))
             AndroidView(
                 factory = { ctx ->
                     PromptTextView(ctx).apply {
@@ -407,7 +430,7 @@ private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
                     }
                 },
                 update = { tv ->
-                    val fontPx = (settings.fontSize * density).toFloat()
+                    val fontPx = ((if (settings.stageMode) settings.stageFontSize else settings.fontSize) * density).toFloat()
                     if (built.tokens !== vm.tokens || built.fontPx != fontPx) {
                         built.tokens = vm.tokens
                         built.fontPx = fontPx
@@ -421,7 +444,7 @@ private fun ScriptBox(vm: PrompterViewModel, settings: AppSettings) {
                     .padding(top = topPad, bottom = bottomPad)
                     .graphicsLayer(scaleX = if (settings.mirrored) -1f else 1f),
             )
-            if (!landscape || cameraOnLeft) Spacer(Modifier.weight(1f, fill = true))
+            if (!hugCamera || cameraOnLeft) Spacer(Modifier.weight(1f, fill = true))
         }
 
         // Reading-line marker, aligned with the (possibly inset) box.
@@ -454,6 +477,17 @@ private fun TopBar(vm: PrompterViewModel, settings: AppSettings, onClose: () -> 
             Text(statusText, color = Color.White, fontSize = 12.sp)
         }
         Spacer(Modifier.weight(1f))
+        // Stage mode: camera off, script only.
+        Box(Modifier.alpha(if (vm.capture.isRecording) 0.35f else 1f)) {
+            RoundButton(enabled = !vm.capture.isRecording, onClick = { settings.stageMode = !settings.stageMode }) {
+                Icon(
+                    if (settings.stageMode) Icons.Filled.VideocamOff else Icons.Filled.Videocam,
+                    contentDescription = stringResource(if (settings.stageMode) R.string.camera_on else R.string.camera_off),
+                    tint = Color.White,
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
         RoundButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings), tint = Color.White) }
     }
 }
@@ -463,9 +497,11 @@ private fun status(vm: PrompterViewModel, settings: AppSettings): Pair<Color, St
     if (!settings.voiceMode) {
         return Color(0xFF4DA3FF) to stringResource(if (vm.isPaused) R.string.paused else R.string.auto_scroll)
     }
-    if (vm.capture.isInterrupted) return Color.Red to stringResource(R.string.camera_interrupted)
+    if (!settings.stageMode && vm.capture.isInterrupted) return Color.Red to stringResource(R.string.camera_interrupted)
+    if (vm.speechStatus == SpeechEngine.Status.Silenced) return Color(0xFFFFA726) to stringResource(R.string.mic_taken_auto)
     if (vm.lost) return Color(0xFFFFA726) to stringResource(R.string.finding_position)
     return when (val s = vm.speechStatus) {
+        SpeechEngine.Status.Silenced -> Color(0xFFFFA726) to stringResource(R.string.mic_taken_auto)
         SpeechEngine.Status.Listening -> Color(0xFF34C759) to stringResource(R.string.listening)
         SpeechEngine.Status.Idle -> Color.Gray to stringResource(R.string.idle)
         SpeechEngine.Status.Loading -> Color(0xFFFFD60A) to stringResource(R.string.speech_loading)
@@ -556,7 +592,7 @@ private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            RecordButton(vm)
+            if (settings.stageMode) Spacer(Modifier.size(74.dp)) else RecordButton(vm)
             Spacer(Modifier.weight(1f))
             if (!settings.voiceMode) {
                 RoundButton(size = 52.dp, onClick = { vm.togglePause() }) {

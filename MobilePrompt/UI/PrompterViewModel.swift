@@ -117,6 +117,11 @@ final class PrompterViewModel: ObservableObject {
     private var speakingTimer: Timer?
     private var voiceMode = true
     private var settings: AppSettings?
+    /// No camera at all: the mic runs through SpeechEngine's own AVAudioEngine.
+    private(set) var stageMode = false
+    /// Speech was stopped because the app went to the background with nothing
+    /// on screen; resumed when it comes back.
+    private var pausedInBackground = false
 
     // MARK: rehearsal
 
@@ -204,6 +209,7 @@ final class PrompterViewModel: ObservableObject {
     func start(script: String, settings: AppSettings) async {
         self.settings = settings
         voiceMode = settings.voiceMode
+        stageMode = settings.stageMode
         scriptText = script
         highlightUIColor = Self.highlightColor(for: settings.highlightStyle)
         scroll.readingLineFrac = settings.readingLineFrac
@@ -242,8 +248,9 @@ final class PrompterViewModel: ObservableObject {
         // A denied mic/speech permission only blocks voice-follow: the camera,
         // auto-scroll and recording still run, and the overlay offers the
         // switch (mirrors the Android screen).
-        let perms = await CaptureController.requestPermissions()
-        var micOK = perms.mic
+        // Stage mode never asks for the camera.
+        var micOK = stageMode ? await AVCaptureDevice.requestAccess(for: .audio)
+                              : (await CaptureController.requestPermissions()).mic
         if voiceMode, micOK {
             micOK = await SpeechEngine.requestPermission()
         }
@@ -256,7 +263,7 @@ final class PrompterViewModel: ObservableObject {
         // which is exactly when the user has just fixed a system-level cause.
         capture.onInterruptionEnded = { [weak self] in
             Task { @MainActor in
-                guard let self, self.voiceMode else { return }
+                guard let self, self.voiceMode, !self.stageMode else { return }
                 self.speech.stop()
                 self.startVoicePipeline()
             }
@@ -265,7 +272,7 @@ final class PrompterViewModel: ObservableObject {
         capture.preferHEVC = settings.hevc
         // Reading a script is a long, touch-free activity: never auto-lock.
         UIApplication.shared.isIdleTimerDisabled = true
-        capture.configureAndStart()
+        if !stageMode { capture.configureAndStart() }
         scroll.start()
         lastProgressAt = CACurrentMediaTime()
 
@@ -296,19 +303,63 @@ final class PrompterViewModel: ObservableObject {
     }
 
     private func startVoicePipeline() {
-        let external = capture.providesAudio
+        let external = !stageMode && capture.providesAudio
         if external {
             capture.onAudioBuffer = { [weak self] buffer in
                 self?.speech.append(buffer)
             }
+        } else {
+            capture.onAudioBuffer = nil
         }
         speech.onWords = { [weak self] words in
             self?.handleWords(words)
         }
         speech.onStatus = { [weak self] status in
-            self?.speechStatus = status
+            guard let self else { return }
+            self.speechStatus = status
+            // Another app took the mic (call, Siri, a live-stream app): keep
+            // the script moving on its own until it comes back.
+            guard self.voiceMode else { return }
+            if status == .interrupted { self.scroll.mode = .auto }
+            else if status == .listening { self.scroll.mode = .voice }
         }
         speech.start(externalAudio: external)
+    }
+
+    /// Toggle the camera off (stage) or on, mid-session. The aligner, the
+    /// scroll position and the highlight all stay where they are.
+    func setStageMode(_ on: Bool) {
+        guard on != stageMode else { return }
+        speech.stop()
+        if on {
+            if capture.isRecording { capture.stopRecording() }
+            cancelCountdown()
+            capture.stopSession()
+            stageMode = true
+            if voiceMode, permissionState == .granted { startVoicePipeline() }
+        } else {
+            Task { @MainActor in
+                _ = await AVCaptureDevice.requestAccess(for: .video)
+                stageMode = false
+                capture.configureAndStart()
+                if voiceMode, permissionState == .granted { startVoicePipeline() }
+            }
+        }
+    }
+
+    /// Background with nothing on screen: the mic must not stay hot.
+    func sceneDidEnterBackground() {
+        guard stageMode, voiceMode, !pausedInBackground else { return }
+        pausedInBackground = true
+        speech.stop()
+        scroll.paused = true
+    }
+
+    func sceneDidBecomeActive() {
+        guard pausedInBackground else { return }
+        pausedInBackground = false
+        scroll.paused = isPaused
+        if voiceMode, permissionState == .granted { startVoicePipeline() }
     }
 
     func stopAll() {
@@ -319,6 +370,7 @@ final class PrompterViewModel: ObservableObject {
         langWatchdog?.invalidate()
         langWatchdog = nil
         speech.stop()
+        speech.releaseAudioSession()
         scroll.stop()
         if capture.isRecording { capture.stopRecording() }
         capture.stopSession()
@@ -383,7 +435,7 @@ final class PrompterViewModel: ObservableObject {
 
     /// Record button: idle → countdown → recording. Tapping mid-countdown cancels.
     func recordTapped() {
-        guard !rehearsalActive else { return }
+        guard !rehearsalActive, !stageMode else { return }
         if capture.isRecording {
             capture.stopRecording()
         } else if countdown != nil {

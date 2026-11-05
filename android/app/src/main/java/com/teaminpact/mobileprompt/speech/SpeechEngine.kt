@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
@@ -83,6 +85,8 @@ class SpeechEngine(private val context: Context) {
         object Idle : Status()
         object Loading : Status()
         object Listening : Status()
+        /** Another app (call, camera, live stream) holds the mic; we get silence until it lets go. */
+        object Silenced : Status()
         object Denied : Status()
         data class Error(val message: String) : Status()
     }
@@ -153,6 +157,16 @@ class SpeechEngine(private val context: Context) {
             return
         }
 
+        // Android doesn't fail a second recorder, it feeds it silence. The
+        // callback says when that happens, so the prompter can fall back to
+        // auto-scroll instead of "listening" to nothing.
+        val silenceCallback = object : AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
+                val mine = configs.firstOrNull { it.clientAudioSessionId == record.audioSessionId } ?: return
+                notify(id, if (mine.isClientSilenced) Status.Silenced else Status.Listening)
+            }
+        }
+        record.registerAudioRecordingCallback(ContextCompat.getMainExecutor(context), silenceCallback)
         val stream = recognizer.createStream()
         try {
             record.startRecording()
@@ -199,6 +213,7 @@ class SpeechEngine(private val context: Context) {
             Log.e(TAG, "recognition loop failed", e)
             notify(id, Status.Error(context.getString(R.string.speech_start_failed)))
         } finally {
+            record.unregisterAudioRecordingCallback(silenceCallback)
             try { record.stop() } catch (_: Exception) {}
             record.release()
             stream.release()

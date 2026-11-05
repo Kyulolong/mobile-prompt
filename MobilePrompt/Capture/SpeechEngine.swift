@@ -16,7 +16,7 @@ import Speech
 /// recognition). The aligner keeps its cursor across restarts, so they're
 /// invisible to the user.
 final class SpeechEngine: NSObject {
-    enum Status: Equatable { case idle, listening, denied, unavailable, dictationDisabled, error(String) }
+    enum Status: Equatable { case idle, listening, denied, unavailable, dictationDisabled, interrupted, error(String) }
 
     /// Last few spoken words (tail), delivered on the main thread.
     var onWords: (([String]) -> Void)?
@@ -32,6 +32,9 @@ final class SpeechEngine: NSObject {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var audioEngine: AVAudioEngine?
+    /// True while this engine (not the capture session) owns the audio session.
+    private var activatedSession = false
+    private var audioObservers: [NSObjectProtocol] = []
     private var running = false
     private var restartTimer: Timer?
     private let tailWords = 8
@@ -255,13 +258,23 @@ final class SpeechEngine: NSObject {
         }
     }
 
-    // MARK: AVAudioEngine fallback (no capture session)
+    // MARK: own microphone (stage mode, simulator)
 
+    /// Mic through AVAudioEngine when no capture session runs. The audio
+    /// session is left active across the engine's own stop/start pairs
+    /// (language switches restart it every few seconds); `releaseAudioSession`
+    /// gives it back when the prompter closes.
     private func startAudioEngine() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            if !activatedSession {
+                // mixWithOthers: never silence a live-stream or call app that
+                // the reader is using alongside the prompter.
+                try session.setCategory(.playAndRecord, mode: .measurement, options: [.mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                activatedSession = true
+                observeAudioSession()
+            }
 
             let engine = AVAudioEngine()
             let input = engine.inputNode
@@ -282,6 +295,65 @@ final class SpeechEngine: NSObject {
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil
+    }
+
+    /// Deactivate the audio session this engine activated (no-op otherwise).
+    func releaseAudioSession() {
+        guard activatedSession else { return }
+        audioObservers.forEach(NotificationCenter.default.removeObserver)
+        audioObservers = []
+        activatedSession = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Phone calls, Siri, another app taking the mic, headset changes: the
+    /// tap goes dead silently otherwise, with the pill still saying
+    /// "listening".
+    private func observeAudioSession() {
+        let nc = NotificationCenter.default
+        let session = AVAudioSession.sharedInstance()
+        audioObservers = [
+            nc.addObserver(forName: AVAudioSession.interruptionNotification, object: session, queue: .main) { [weak self] note in
+                guard let self, self.running, self.audioEngine != nil || self.activatedSession else { return }
+                let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                guard let raw, let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+                #if DEBUG
+                print("AUD|interruption|\(type == .began ? "began" : "ended")")
+                #endif
+                switch type {
+                case .began:
+                    self.notify(.interrupted)
+                case .ended:
+                    self.restartAudioEngine()
+                @unknown default:
+                    break
+                }
+            },
+            nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] note in
+                guard let self, self.running, self.audioEngine != nil else { return }
+                let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+                guard let raw, let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+                      reason == .oldDeviceUnavailable || reason == .newDeviceAvailable else { return }
+                self.restartAudioEngine() // the input format may have changed
+            },
+            nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: session, queue: .main) { [weak self] _ in
+                guard let self, self.running else { return }
+                self.activatedSession = false // the system dropped it; set it up again
+                self.restartAudioEngine()
+            },
+            nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: .main) { [weak self] note in
+                guard let self, self.running, let engine = self.audioEngine, (note.object as? AVAudioEngine) === engine else { return }
+                self.restartAudioEngine()
+            },
+        ]
+    }
+
+    private func restartAudioEngine() {
+        guard running else { return }
+        stopAudioEngine()
+        startAudioEngine()
+        restartSession()
+        notify(.listening)
     }
 
     private func notify(_ status: Status) {

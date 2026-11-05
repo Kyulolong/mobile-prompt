@@ -29,6 +29,10 @@ class AppSettings(context: Context) {
     /** UI language: "system" | "ko" | "en" — applies immediately. */
     var appLanguage: String by pref("appLanguage", "system")
         private set
+    /** Stage mode: no camera, script only (speeches, Zoom on another device). */
+    var stageMode: Boolean by pref("stageMode", false)
+    var stageFontSize: Double by pref("stageFontSize", 38.0)
+    var pipFontSize: Double by pref("pipFontSize", 26.0)
     /** Recording quality: "1080p" | "4k" (4K only when the camera can). */
     var videoQuality: String by pref("videoQuality", "1080p")
     /** Volume buttons start and stop recording in the prompter. */

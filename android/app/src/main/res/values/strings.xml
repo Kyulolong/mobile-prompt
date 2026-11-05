@@ -74,7 +74,7 @@
     <string name="width">Width</string>
     <string name="top_margin">Top Margin</string>
     <string name="bottom_margin">Bottom Margin</string>
-    <string name="box_footer">In landscape, the script is placed at 55% width on the camera side automatically.</string>
+    <string name="box_footer">In landscape, the script is placed at 55% width on the camera side automatically (except in Stage Mode).</string>
     <string name="section_language">Language</string>
     <string name="app_language">App Language</string>
     <string name="system_default">System Default</string>
@@ -131,4 +131,12 @@
     <string name="quality">Quality</string>
     <string name="hardware_shutter">Volume buttons start and stop recording</string>
     <string name="recording_footer">4K files are about 4× larger and long takes can heat the phone.</string>
+    <!-- Stage mode -->
+    <string name="stage_mode">Stage Mode</string>
+    <string name="stage_mode_footer">Script only, no camera. For speeches, lectures, and Zoom or live streams running on another device.</string>
+    <string name="camera_off">Camera Off</string>
+    <string name="camera_on">Camera On</string>
+    <string name="stage_font_size">Stage Font Size</string>
+    <string name="pip_font_size">Floating Font Size</string>
+    <string name="mic_taken_auto">Mic taken · auto-scroll</string>
 </resources>

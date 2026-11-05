@@ -51,12 +51,21 @@ fun SettingsSheet(settings: AppSettings, compact: Boolean, onDismiss: () -> Unit
             }
 
             SectionTitle(stringResource(R.string.section_text))
-            SliderRow(
-                label = stringResource(R.string.size),
-                value = settings.fontSize.toFloat(), range = 18f..56f, steps = 37,
-                valueText = "${settings.fontSize.roundToInt()}",
-                onChange = { settings.fontSize = it.roundToInt().toDouble() },
-            )
+            if (settings.stageMode) {
+                SliderRow(
+                    label = stringResource(R.string.size),
+                    value = settings.stageFontSize.toFloat(), range = 24f..72f, steps = 47,
+                    valueText = "${settings.stageFontSize.roundToInt()}",
+                    onChange = { settings.stageFontSize = it.roundToInt().toDouble() },
+                )
+            } else {
+                SliderRow(
+                    label = stringResource(R.string.size),
+                    value = settings.fontSize.toFloat(), range = 18f..56f, steps = 37,
+                    valueText = "${settings.fontSize.roundToInt()}",
+                    onChange = { settings.fontSize = it.roundToInt().toDouble() },
+                )
+            }
             Text(stringResource(R.string.highlight_color), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ColorChip("yellow", stringResource(R.string.yellow), settings)
@@ -71,8 +80,18 @@ fun SettingsSheet(settings: AppSettings, compact: Boolean, onDismiss: () -> Unit
             }
 
             SectionTitle(stringResource(R.string.section_display))
-            SliderRow(stringResource(R.string.background_dim), settings.scrimOpacity.toFloat(), 0f..0.7f, 0, null) { settings.scrimOpacity = it.toDouble() }
+            if (!settings.stageMode) {
+                SliderRow(stringResource(R.string.background_dim), settings.scrimOpacity.toFloat(), 0f..0.7f, 0, null) { settings.scrimOpacity = it.toDouble() }
+            }
             SliderRow(stringResource(R.string.reading_line), settings.readingLineFrac.toFloat(), 0.15f..0.6f, 0, null) { settings.readingLineFrac = it.toDouble() }
+
+            SectionTitle(stringResource(R.string.stage_mode))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.stage_mode), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Switch(checked = settings.stageMode, onCheckedChange = { settings.stageMode = it })
+            }
+            SliderRow(stringResource(R.string.stage_font_size), settings.stageFontSize.toFloat(), 24f..72f, 47, "${settings.stageFontSize.roundToInt()}") { settings.stageFontSize = it.roundToInt().toDouble() }
+            Footer(stringResource(R.string.stage_mode_footer))
 
             SectionTitle(stringResource(R.string.section_box))
             SliderRow(stringResource(R.string.width), settings.portraitWidthFrac.toFloat(), 0.4f..1f, 0, "${(settings.portraitWidthFrac * 100).roundToInt()}%") { settings.portraitWidthFrac = it.toDouble() }

@@ -25,6 +25,9 @@ struct PrompterView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
+            if settings.stageMode {
+                Color.black.ignoresSafeArea()
+            } else {
             switch vm.capture.cameraState {
             case .ready:
                 CameraPreview(controller: vm.capture)
@@ -67,6 +70,7 @@ struct PrompterView: View {
             Color.black.opacity(settings.scrimOpacity)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            }
 
             // In landscape the front camera sits on one side edge; a full-width
             // column makes the reader's gaze wander visibly off-lens. Narrow
@@ -74,24 +78,27 @@ struct PrompterView: View {
             // interface orientation) so the eyes stay next to the lens.
             GeometryReader { geo in
                 let landscape = geo.size.width > geo.size.height
-                let boxWidth = landscape ? geo.size.width * 0.55
+                // Stage mode has no lens to hug: the box settings apply in
+                // every orientation.
+                let hugCamera = landscape && !settings.stageMode
+                let boxWidth = hugCamera ? geo.size.width * 0.55
                                          : geo.size.width * settings.portraitWidthFrac
-                let topPad = landscape ? 0 : geo.size.height * settings.portraitTopFrac
-                let bottomPad = landscape ? 0 : geo.size.height * settings.portraitBottomFrac
+                let topPad = hugCamera ? 0 : geo.size.height * settings.portraitTopFrac
+                let bottomPad = hugCamera ? 0 : geo.size.height * settings.portraitBottomFrac
                 let bandHeight = geo.size.height - topPad - bottomPad
 
                 HStack(spacing: 0) {
-                    if !landscape || !Self.cameraOnLeadingEdge { Spacer(minLength: 0) }
+                    if !hugCamera || !Self.cameraOnLeadingEdge { Spacer(minLength: 0) }
                     ScriptTextView(viewModel: vm,
                                    tokens: vm.tokens,
-                                   fontSize: settings.fontSize,
+                                   fontSize: settings.stageMode ? settings.stageFontSize : settings.fontSize,
                                    readingLineFrac: settings.readingLineFrac)
                         .padding(.horizontal, 14)
                         .scaleEffect(x: settings.mirrored ? -1 : 1, y: 1)
                         .frame(width: boxWidth)
                         .padding(.top, topPad)
                         .padding(.bottom, bottomPad)
-                    if !landscape || Self.cameraOnLeadingEdge { Spacer(minLength: 0) }
+                    if !hugCamera || Self.cameraOnLeadingEdge { Spacer(minLength: 0) }
                 }
 
                 // Reading-line marker, aligned with the (possibly inset) box.
@@ -110,7 +117,7 @@ struct PrompterView: View {
                 if vm.rehearsalActive {
                     rehearsalBadge
                 }
-                if vm.capture.cameraState == .denied {
+                if !settings.stageMode, vm.capture.cameraState == .denied {
                     cameraDeniedBanner
                 }
                 Spacer()
@@ -159,7 +166,7 @@ struct PrompterView: View {
                 dictationOverlay
             }
         }
-        .background(CaptureEventBridge(enabled: settings.hardwareShutter && vm.capture.cameraAvailable && !showSettings,
+        .background(CaptureEventBridge(enabled: settings.hardwareShutter && !settings.stageMode && vm.capture.cameraAvailable && !showSettings,
                                        onPress: { vm.hardwareShutterPressed() }))
         .statusBarHidden()
         .task {
@@ -167,8 +174,17 @@ struct PrompterView: View {
         }
         .onDisappear { vm.stopAll() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { vm.recheckPermissions() }
+            switch phase {
+            case .active:
+                vm.sceneDidBecomeActive()
+                vm.recheckPermissions()
+            case .background:
+                vm.sceneDidEnterBackground()
+            default:
+                break
+            }
         }
+        .onChange(of: settings.stageMode) { _, on in vm.setStageMode(on) }
         .onChange(of: settings.voiceMode) { _, voice in vm.setMode(voice: voice) }
         .onChange(of: settings.autoSpeed) { _, v in vm.scroll.autoPxPerSec = v }
         .onChange(of: settings.readingLineFrac) { _, v in vm.scroll.readingLineFrac = v }
@@ -324,7 +340,8 @@ struct PrompterView: View {
 
     private var statusColor: Color {
         guard settings.voiceMode else { return .blue }
-        if vm.capture.isInterrupted { return .red }
+        if !settings.stageMode, vm.capture.isInterrupted { return .red }
+        if vm.speechStatus == .interrupted { return .orange }
         return vm.lost ? .orange : .green
     }
 
@@ -332,9 +349,11 @@ struct PrompterView: View {
         if !settings.voiceMode {
             return vm.isPaused ? AppSettings.tr("일시정지") : AppSettings.tr("자동 스크롤")
         }
-        if vm.capture.isInterrupted { return AppSettings.tr("카메라·마이크 중단됨") }
+        if !settings.stageMode, vm.capture.isInterrupted { return AppSettings.tr("카메라·마이크 중단됨") }
+        if vm.speechStatus == .interrupted { return AppSettings.tr("마이크 중단됨 · 자동 스크롤") }
         if vm.lost { return AppSettings.tr("위치 찾는 중…") }
         switch vm.speechStatus {
+        case .interrupted: return AppSettings.tr("마이크 중단됨 · 자동 스크롤")
         case .listening: return AppSettings.tr("듣는 중")
         case .idle: return AppSettings.tr("대기")
         case .denied: return AppSettings.tr("음성인식 권한 없음")
@@ -369,6 +388,18 @@ struct PrompterView: View {
             .background(.black.opacity(0.4), in: Capsule())
 
             Spacer()
+
+            // Stage mode: camera off, script only.
+            Button {
+                settings.stageMode.toggle()
+            } label: {
+                Image(systemName: settings.stageMode ? "video.slash.fill" : "video.fill")
+                    .font(.system(size: 17))
+                    .frame(width: 40, height: 40)
+                    .background(settings.stageMode ? .cyan.opacity(0.45) : .black.opacity(0.4), in: Circle())
+            }
+            .accessibilityLabel(Text(settings.stageMode ? "카메라 켜기" : "카메라 끄기"))
+            .disabled(vm.capture.isRecording)
 
             Button {
                 showSettings = true
@@ -412,6 +443,9 @@ struct PrompterView: View {
                 Spacer()
 
                 // record button (idle → 3·2·1 countdown → recording)
+                if settings.stageMode {
+                    Color.clear.frame(width: 74, height: 74)
+                } else {
                 Button {
                     vm.recordTapped()
                 } label: {
@@ -435,6 +469,7 @@ struct PrompterView: View {
                 }
                 .disabled(!vm.capture.cameraAvailable || vm.rehearsalActive)
                 .opacity(vm.capture.cameraAvailable && !vm.rehearsalActive ? 1 : 0.35)
+                }
 
                 Spacer()
 

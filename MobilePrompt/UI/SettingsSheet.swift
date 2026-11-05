@@ -14,10 +14,17 @@ struct SettingsSheet: View {
                 Section("글자") {
                     HStack {
                         Text("크기")
-                        Slider(value: $settings.fontSize, in: 18...56, step: 1)
-                        Text("\(Int(settings.fontSize))")
-                            .monospacedDigit()
-                            .frame(width: 32, alignment: .trailing)
+                        if settings.stageMode {
+                            Slider(value: $settings.stageFontSize, in: 24...72, step: 1)
+                            Text("\(Int(settings.stageFontSize))")
+                                .monospacedDigit()
+                                .frame(width: 32, alignment: .trailing)
+                        } else {
+                            Slider(value: $settings.fontSize, in: 18...56, step: 1)
+                            Text("\(Int(settings.fontSize))")
+                                .monospacedDigit()
+                                .frame(width: 32, alignment: .trailing)
+                        }
                     }
                     Picker("하이라이트 색", selection: $settings.highlightStyle) {
                         Text("노랑").tag("yellow")
@@ -29,14 +36,30 @@ struct SettingsSheet: View {
                     Toggle("거울 모드 (좌우 반전)", isOn: $settings.mirrored)
                 }
                 Section("화면") {
-                    HStack {
-                        Text("배경 어둡기")
-                        Slider(value: $settings.scrimOpacity, in: 0...0.7)
+                    if !settings.stageMode {
+                        HStack {
+                            Text("배경 어둡기")
+                            Slider(value: $settings.scrimOpacity, in: 0...0.7)
+                        }
                     }
                     HStack {
                         Text("읽는 줄 위치")
                         Slider(value: $settings.readingLineFrac, in: 0.15...0.6)
                     }
+                }
+                Section {
+                    Toggle("무대 모드", isOn: $settings.stageMode)
+                    HStack {
+                        Text("무대 글자 크기")
+                        Slider(value: $settings.stageFontSize, in: 24...72, step: 1)
+                        Text("\(Int(settings.stageFontSize))")
+                            .monospacedDigit()
+                            .frame(width: 32, alignment: .trailing)
+                    }
+                } header: {
+                    Text("무대 모드")
+                } footer: {
+                    Text("카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요.")
                 }
                 Section {
                     HStack {
@@ -63,7 +86,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("글상자 (세로 모드)")
                 } footer: {
-                    Text("가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요.")
+                    Text("가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요 (무대 모드 제외).")
                 }
                 Section {
                     Picker("앱 언어", selection: $settings.appLanguage) {

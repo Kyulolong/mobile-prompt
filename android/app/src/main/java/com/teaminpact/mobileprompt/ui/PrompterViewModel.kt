@@ -89,6 +89,9 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     private var started = false
     private var voiceMode = true
+    /** No camera at all; speech is independent of it on Android anyway. */
+    var stageMode = false
+        private set
     private var scriptText = ""
     private var textView: PromptTextView? = null
     private var currentHighlight = -1
@@ -232,6 +235,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         started = true
         this.settings = settings
         voiceMode = settings.voiceMode
+        stageMode = settings.stageMode
         scriptText = script
         highlightColor = highlightColor(settings.highlightStyle)
         scroll.readingLineFrac = settings.readingLineFrac.toFloat()
@@ -277,8 +281,30 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun startVoicePipeline() {
         speech.onWords = { handleWords(it) }
-        speech.onStatus = { speechStatus = it }
+        speech.onStatus = { st ->
+            speechStatus = st
+            // Another app took the mic: keep the script moving on its own
+            // until it comes back.
+            if (voiceMode) {
+                if (st == SpeechEngine.Status.Silenced) scroll.mode = ScrollModel.Mode.AUTO
+                else if (st == SpeechEngine.Status.Listening) scroll.mode = ScrollModel.Mode.VOICE
+            }
+        }
         speech.start()
+    }
+
+    /**
+     * Toggle the camera off (stage) or on, mid-session. Turning it on is the
+     * screen's job (it rebinds the preview); the aligner, scroll position and
+     * highlight stay where they are either way.
+     */
+    fun setStageMode(on: Boolean) {
+        if (on == stageMode) return
+        stageMode = on
+        if (on) {
+            cancelCountdown()
+            capture.unbind()
+        }
     }
 
     fun stopAll() {
@@ -359,7 +385,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Record button: idle → countdown → recording. Tapping mid-countdown cancels. */
     fun recordTapped() {
-        if (rehearsalActive) return
+        if (rehearsalActive || stageMode) return
         if (capture.isRecording) {
             capture.stopRecording()
         } else if (countdown != null) {
