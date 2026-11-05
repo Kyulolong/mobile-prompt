@@ -111,9 +111,6 @@ struct PrompterView: View {
                     cameraDeniedBanner
                 }
                 Spacer()
-                if vm.suggestedLang != nil {
-                    languageHint
-                }
                 bottomBar
             }
 
@@ -211,43 +208,6 @@ struct PrompterView: View {
     private var saveAlertBinding: Binding<Bool> {
         Binding(get: { vm.capture.saveMessage != nil },
                 set: { if !$0 { vm.capture.saveMessage = nil } })
-    }
-
-    /// Gentle capsule shown when the chosen recognition language doesn't match
-    /// what the script looks like — one tap switches, ✕ keeps the choice.
-    private var languageHint: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "globe")
-                .font(.footnote)
-            Text("이 대본은 \(langName(vm.suggestedLang ?? "ko")) 대본 같아요")
-                .font(.footnote)
-            Button {
-                withAnimation { vm.applySuggestedLang() }
-            } label: {
-                Text("전환")
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 5)
-                    .background(.white.opacity(0.22), in: Capsule())
-            }
-            Button {
-                withAnimation { vm.suggestedLang = nil }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.caption2)
-                    .padding(6)
-            }
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(.black.opacity(0.55), in: Capsule())
-        .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-
-    private func langName(_ code: String) -> String {
-        code == "en" ? AppSettings.tr("영어") : AppSettings.tr("한국어")
     }
 
     private var recordingBadge: some View {

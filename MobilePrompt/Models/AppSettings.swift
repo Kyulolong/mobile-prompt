@@ -58,8 +58,6 @@ final class AppSettings: ObservableObject {
             }
         }
     }
-    /// Recognition/alignment language: "auto" (detect from script) | "ko" | "en".
-    @Published var recogLanguage: String { didSet { save(recogLanguage, "recogLanguage") } }
     // Portrait-mode script box: width fraction and top/bottom margins.
     @Published var portraitWidthFrac: Double { didSet { save(portraitWidthFrac, "portraitWidthFrac") } }
     @Published var portraitTopFrac: Double { didSet { save(portraitTopFrac, "portraitTopFrac") } }
@@ -76,7 +74,6 @@ final class AppSettings: ObservableObject {
         voiceMode = d.object(forKey: "voiceMode") as? Bool ?? true
         highlightStyle = d.string(forKey: "highlightStyle") ?? "green"
         appLanguage = d.string(forKey: "appLanguage") ?? "system"
-        recogLanguage = d.string(forKey: "recogLanguage") ?? "auto"
         portraitWidthFrac = d.object(forKey: "portraitWidthFrac") as? Double ?? 1.0
         portraitTopFrac = d.object(forKey: "portraitTopFrac") as? Double ?? 0
         portraitBottomFrac = d.object(forKey: "portraitBottomFrac") as? Double ?? 0

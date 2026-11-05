@@ -102,9 +102,6 @@ final class PrompterViewModel: ObservableObject {
 
     /// Language actually driving recognition/alignment this session.
     private(set) var activeLang = "ko"
-    /// Set when the chosen language differs from what the script looks like —
-    /// drives the gentle "switch language?" capsule in the prompter.
-    @Published var suggestedLang: String?
     private var scriptText = ""
 
     func start(script: String, settings: AppSettings) async {
@@ -202,22 +199,6 @@ final class PrompterViewModel: ObservableObject {
             self?.speechStatus = status
         }
         speech.start(externalAudio: external)
-    }
-
-    /// Accept the language suggestion: reload the aligner and switch the
-    /// recognizer locale in place. The scroll position resets to the top of
-    /// the (same) script only in aligner state — the screen stays put.
-    func applySuggestedLang() {
-        guard let lang = suggestedLang, let engine else { return }
-        suggestedLang = nil
-        activeLang = lang
-        currentSTTLang = lang
-        if voiceMode { speech.stop() }
-        speech.setLocale(lang == "en" ? "en-US" : "ko-KR")
-        tokens = engine.load(script: scriptText, config: alignOverrides, lang: lang)
-        computeLangZones(base: lang)
-        pendingJumpTarget = nil
-        if voiceMode { startVoicePipeline() }
     }
 
     func stopAll() {
