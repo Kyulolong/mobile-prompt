@@ -53,6 +53,9 @@ class ScriptStore(context: Context) {
         save()
     }
 
+    /** A fresh copy at the top of the library. */
+    fun duplicate(id: String): SavedScript? = script(id)?.let { add(it.text) }
+
     fun script(id: String): SavedScript? = scripts.firstOrNull { it.id == id }
 
     private fun load() {

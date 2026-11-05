@@ -121,4 +121,9 @@
     <string name="duration_sec">%1$s초</string>
     <string name="pace_typical">(보통 속도)</string>
     <string name="pace_yours">(내 속도)</string>
+    <!-- Library extras -->
+    <string name="duplicate">복제</string>
+    <string name="import_text_file">텍스트 파일 가져오기…</string>
+    <string name="search_scripts">대본 검색</string>
+    <string name="import_failed">파일을 읽지 못했어요</string>
 </resources>

@@ -121,4 +121,9 @@
     <string name="duration_sec">%1$s s</string>
     <string name="pace_typical">(typical pace)</string>
     <string name="pace_yours">(your pace)</string>
+    <!-- Library extras -->
+    <string name="duplicate">Duplicate</string>
+    <string name="import_text_file">Import Text File…</string>
+    <string name="search_scripts">Search scripts</string>
+    <string name="import_failed">Couldn\'t read the file</string>
 </resources>

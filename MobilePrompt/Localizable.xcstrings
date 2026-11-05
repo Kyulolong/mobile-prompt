@@ -107,7 +107,11 @@
     "%@분 %@초" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ min %@ s" } } } },
     "%@초" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ s" } } } },
     "(보통 속도)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "(typical pace)" } } } },
-    "(내 속도)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "(your pace)" } } } }
+    "(내 속도)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "(your pace)" } } } },
+    "복제" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Duplicate" } } } },
+    "텍스트 파일 가져오기…" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Import Text File…" } } } },
+    "대본 검색" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Search scripts" } } } },
+    "파일을 읽지 못했어요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't read the file" } } } }
   },
   "version" : "1.0"
 }
