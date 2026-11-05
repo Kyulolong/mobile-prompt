@@ -10,7 +10,6 @@
     <string name="delete">Delete</string>
     <string name="delete_n">Delete (%1$d)</string>
     <string name="done">Done</string>
-    <string name="cancel">Cancel</string>
     <string name="settings">Settings</string>
 
     <!-- Editor -->
@@ -41,7 +40,6 @@
     <string name="mic_start_failed">Couldn\'t start the microphone</string>
     <string name="script_empty">The script is empty</string>
     <string name="notice">Notice</string>
-    <string name="share_srt">Share Subtitles (SRT)</string>
     <string name="share_video_srt">Share Video &amp; Subtitles</string>
     <string name="back_to_perplz">Back to Perplz</string>
     <string name="ok">OK</string>

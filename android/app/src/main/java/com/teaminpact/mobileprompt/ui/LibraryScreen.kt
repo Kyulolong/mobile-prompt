@@ -3,6 +3,7 @@ package com.teaminpact.mobileprompt.ui
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,19 +22,26 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +59,10 @@ import com.teaminpact.mobileprompt.model.AppSettings
 import com.teaminpact.mobileprompt.model.SavedScript
 import com.teaminpact.mobileprompt.model.ScriptStore
 
-/** Script library — the app's home screen. Long-press a row to select several. */
+/**
+ * Script library — the app's home screen. Swipe a row left to delete it;
+ * long-press for "select multiple" / "delete" (the same menu as on iOS).
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(store: ScriptStore, settings: AppSettings, onOpen: (String) -> Unit) {
@@ -107,26 +118,46 @@ fun LibraryScreen(store: ScriptStore, settings: AppSettings, onOpen: (String) ->
         } else {
             LazyColumn(Modifier.padding(padding).fillMaxSize()) {
                 items(store.scripts, key = { it.id }) { script ->
-                    ScriptRow(
-                        script = script,
-                        selecting = selecting,
-                        selected = script.id in selection.value,
-                        onClick = {
-                            if (selecting) {
-                                selection.value = selection.value.toMutableSet().apply {
-                                    if (!add(script.id)) remove(script.id)
-                                }
-                            } else {
-                                onOpen(script.id)
+                    SwipeToDismissBox(
+                        state = rememberSwipeToDismissBoxState(),
+                        onDismiss = { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) store.delete(setOf(script.id))
+                        },
+                        enableDismissFromStartToEnd = false,
+                        gesturesEnabled = !selecting,
+                        backgroundContent = {
+                            Box(
+                                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.CenterEnd,
+                            ) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.delete),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                )
                             }
                         },
-                        onLongClick = {
-                            if (!selecting) {
+                    ) {
+                        ScriptRow(
+                            script = script,
+                            selecting = selecting,
+                            selected = script.id in selection.value,
+                            onClick = {
+                                if (selecting) {
+                                    selection.value = selection.value.toMutableSet().apply {
+                                        if (!add(script.id)) remove(script.id)
+                                    }
+                                } else {
+                                    onOpen(script.id)
+                                }
+                            },
+                            onSelectMultiple = {
                                 selecting = true
                                 selection.value = setOf(script.id)
-                            }
-                        },
-                    )
+                            },
+                            onDelete = { store.delete(setOf(script.id)) },
+                        )
+                    }
                     HorizontalDivider(Modifier.padding(start = 20.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                 }
             }
@@ -145,13 +176,16 @@ private fun ScriptRow(
     selecting: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onSelectMultiple: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
     Row(
         Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = { if (!selecting) menuExpanded = true })
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -180,6 +214,19 @@ private fun ScriptRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.select_multiple)) },
+            leadingIcon = { Icon(Icons.Filled.Checklist, contentDescription = null) },
+            onClick = { menuExpanded = false; onSelectMultiple() },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
+            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            onClick = { menuExpanded = false; onDelete() },
+        )
+    }
     }
 }
 

@@ -10,7 +10,6 @@
     <string name="delete">삭제</string>
     <string name="delete_n">삭제 (%1$d)</string>
     <string name="done">완료</string>
-    <string name="cancel">취소</string>
     <string name="settings">설정</string>
 
     <!-- Editor -->
@@ -41,7 +40,6 @@
     <string name="mic_start_failed">마이크를 시작하지 못했어요</string>
     <string name="script_empty">대본이 비어 있어요</string>
     <string name="notice">안내</string>
-    <string name="share_srt">자막(SRT) 공유</string>
     <string name="share_video_srt">영상·자막 공유</string>
     <string name="back_to_perplz">퍼플즈로 돌아가기</string>
     <string name="ok">확인</string>

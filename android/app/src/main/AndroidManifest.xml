@@ -28,11 +28,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- "Share to prompter": any app's share sheet drops text in as a new script. -->
+            <!-- "Share to prompter": any app's share sheet drops text (inline or as a
+                 text file) in as a new script. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/*" />
             </intent-filter>
             <!-- Perplz handoff: voiceprompter://script?s=…&autostart=1&return=… (docs/perplz-integration.md) -->
             <intent-filter>

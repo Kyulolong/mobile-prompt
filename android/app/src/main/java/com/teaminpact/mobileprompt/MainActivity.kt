@@ -1,11 +1,14 @@
 package com.teaminpact.mobileprompt
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.IntentCompat
 import com.teaminpact.mobileprompt.model.HandoffRequest
+import com.teaminpact.mobileprompt.model.TextDecoding
 import com.teaminpact.mobileprompt.ui.AppRoot
 import com.teaminpact.mobileprompt.ui.MobilePromptTheme
 
@@ -34,7 +37,8 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Two ways a script arrives from another app:
-     *  - the share sheet (ACTION_SEND text/plain) → a new script in the library
+     *  - the share sheet (ACTION_SEND with a text MIME type: inline text or a
+     *    text file) → a new script in the library
      *  - the Perplz handoff (voiceprompter://script?s=…) → a new script, opened
      *    right away (editor, or the prompter itself with autostart=1)
      */
@@ -43,7 +47,10 @@ class MainActivity : AppCompatActivity() {
         when (intent.action) {
             Intent.ACTION_SEND -> {
                 if (intent.type?.startsWith("text/") != true) return
-                val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    ?: IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                        ?.let { TextDecoding.read(contentResolver, it) }
+                    ?: return
                 if (text.isBlank()) return
                 app.scriptStore.add(text)
             }

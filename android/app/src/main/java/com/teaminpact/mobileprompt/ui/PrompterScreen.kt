@@ -71,6 +71,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -506,12 +508,14 @@ private fun RecordButton(vm: PrompterViewModel) {
     val enabled = vm.capture.canRecord
     val inner by animateDpAsState(if (recording) 30.dp else 62.dp, label = "rec")
     val corner by animateDpAsState(if (recording) 6.dp else 31.dp, label = "corner")
+    val label = stringResource(if (recording) R.string.stop_recording else R.string.record)
     Box(
         Modifier
             .size(74.dp)
             .alpha(if (enabled) 1f else 0.35f)
             .border(4.dp, Color.White, CircleShape)
             .clip(CircleShape)
+            .semantics { contentDescription = label }
             .clickable(enabled = enabled) { vm.recordTapped() },
         contentAlignment = Alignment.Center,
     ) {
