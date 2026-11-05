@@ -35,6 +35,9 @@ final class ScrollModel {
 
     weak var surface: ScrollSurface?
     var offsets: [CGFloat] = []
+    /// The (fractional) token currently on the reading line — what the
+    /// floating window draws. Updated every frame.
+    private(set) var displayedToken: Double = 0
 
     private var confirmedToken = 0
     private var tokensPerSec: Double = 2.5
@@ -88,6 +91,31 @@ final class ScrollModel {
         creepTokens = 0
         s.promptScrollTop = y(at: token) - s.promptViewportHeight * readingLineFrac
         lastWrittenTop = s.promptScrollTop
+        displayedToken = token
+    }
+
+    /// After a relayout (rotation, font change): put the reading line back on
+    /// the target at once instead of gliding there, keeping the creep.
+    func resnap() {
+        guard let s = surface, !offsets.isEmpty else { return }
+        s.promptScrollTop = y(at: prevDesired) - s.promptViewportHeight * readingLineFrac
+        lastWrittenTop = s.promptScrollTop
+        displayedToken = prevDesired
+    }
+
+    /// Inverse of y(at:): which token sits at content offset `yPos`.
+    private func token(atY yPos: CGFloat) -> Double {
+        guard offsets.count > 1 else { return 0 }
+        if yPos <= offsets[0] { return 0 }
+        if yPos >= offsets[offsets.count - 1] { return Double(offsets.count - 1) }
+        var lo = 0, hi = offsets.count - 1
+        while hi - lo > 1 {
+            let mid = (lo + hi) / 2
+            if offsets[mid] <= yPos { lo = mid } else { hi = mid }
+        }
+        let span = offsets[hi] - offsets[lo]
+        let f = span > 0 ? Double((yPos - offsets[lo]) / span) : 0
+        return Double(lo) + max(0, min(1, f))
     }
 
     private func y(at index: Double) -> CGFloat {
@@ -130,6 +158,7 @@ final class ScrollModel {
                 s.promptScrollTop = min(endTop, s.promptScrollTop + autoPxPerSec * dt)
             }
             lastWrittenTop = s.promptScrollTop
+            displayedToken = token(atY: s.promptScrollTop + s.promptViewportHeight * readingLineFrac)
             return
         }
 
@@ -154,6 +183,7 @@ final class ScrollModel {
             s.promptScrollTop += max(-maxStep, min(maxStep, diff * spring))
         }
         lastWrittenTop = s.promptScrollTop
+        displayedToken = token(atY: s.promptScrollTop + s.promptViewportHeight * readingLineFrac)
         #if DEBUG
         if now - lastDebugLog > 0.5 {
             lastDebugLog = now

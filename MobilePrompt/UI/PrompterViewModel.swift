@@ -24,6 +24,8 @@ final class PrompterViewModel: ObservableObject {
     let capture = CaptureController()
     let speech = SpeechEngine()
     let scroll = ScrollModel()
+    /// Picture-in-Picture prompter (stage mode).
+    let floating = FloatingPrompterController()
     private var engine: AlignEngine?
     private var cancellables = Set<AnyCancellable>()
 
@@ -51,6 +53,15 @@ final class PrompterViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        floating.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        floating.frameSource = { [weak self] in self?.currentFrame ?? .init(fractionalToken: 0, highlight: -1, highlightColor: nil, status: .off, paused: false) }
+        floating.onPlayPause = { [weak self] playing in self?.setPausedFromPip(!playing) }
+        floating.onSkip = { [weak self] delta in self?.jumpTokens(by: delta) }
+        floating.onStoppedInBackground = { [weak self] in self?.sceneDidEnterBackground() }
+        floating.onFailure = { [weak self] message in self?.showToast(message) }
 
         // Subtitle capture rides on the recording lifecycle.
         capture.$isRecording
@@ -234,6 +245,7 @@ final class PrompterViewModel: ObservableObject {
         let engineTokens = engine.load(script: ScriptMarkup.engineText(script), config: alignOverrides, lang: chosen)
         tokens = ScriptMarkup.apply(engineTokens, original: script)
             ?? engine.load(script: script, config: alignOverrides, lang: chosen)
+        floating.configure(tokens: tokens, fontSize: settings.pipFontSize)
         computeLangZones(base: chosen)
         lastSpokenToken = tokens.lastIndex { t in
             t.kind != .note && t.display.unicodeScalars.contains { s in
@@ -326,11 +338,56 @@ final class PrompterViewModel: ObservableObject {
         speech.start(externalAudio: external)
     }
 
+    // MARK: floating (PiP)
+
+    /// What the floating window should show right now.
+    private var currentFrame: PipFrameRenderer.Frame {
+        let status: PipFrameRenderer.Status
+        if !voiceMode { status = .auto }
+        else if speechStatus == .interrupted { status = .interrupted }
+        else if lost { status = .lost }
+        else if speechStatus == .listening { status = .listening }
+        else { status = .off }
+        return .init(fractionalToken: scroll.displayedToken, highlight: currentHighlight,
+                     highlightColor: highlightUIColor, status: status, paused: isPaused)
+    }
+
+    /// The PiP button: make sure an audio session is up (PiP needs one even
+    /// with voice off) and let the controller fly the window out.
+    func startFloating() {
+        guard stageMode else { return }
+        speech.activateAudioSessionIfNeeded()
+        floating.isPausedForPlayback = isPaused
+        floating.start()
+    }
+
+    func setPipFontSize(_ size: Double) {
+        floating.configure(tokens: tokens, fontSize: size)
+    }
+
+    /// PiP's play/pause button pauses the prompter — in voice mode that also
+    /// stops listening, so a paused floating window never holds the mic.
+    func setPausedFromPip(_ paused: Bool) {
+        guard paused != isPaused else { return }
+        isPaused = paused
+        scroll.paused = paused
+        floating.isPausedForPlayback = paused
+        guard voiceMode, permissionState == .granted else { return }
+        if paused { speech.stop() } else { startVoicePipeline() }
+    }
+
+    /// PiP's skip buttons: a few words back or forward.
+    func jumpTokens(by delta: Int) {
+        guard !tokens.isEmpty else { return }
+        seek(to: max(0, min(tokens.count - 1, currentHighlight + delta)))
+    }
+
     /// Toggle the camera off (stage) or on, mid-session. The aligner, the
     /// scroll position and the highlight all stay where they are.
     func setStageMode(_ on: Bool) {
         guard on != stageMode else { return }
         speech.stop()
+        if !on { floating.detach() } // the source layer leaves with stage mode
         if on {
             if capture.isRecording { capture.stopRecording() }
             cancelCountdown()
@@ -347,9 +404,10 @@ final class PrompterViewModel: ObservableObject {
         }
     }
 
-    /// Background with nothing on screen: the mic must not stay hot.
+    /// Background with nothing on screen: the mic must not stay hot. (A
+    /// floating window IS something on screen — then it keeps listening.)
     func sceneDidEnterBackground() {
-        guard stageMode, voiceMode, !pausedInBackground else { return }
+        guard stageMode, voiceMode, !pausedInBackground, !floating.isActive else { return }
         pausedInBackground = true
         speech.stop()
         scroll.paused = true
@@ -369,6 +427,7 @@ final class PrompterViewModel: ObservableObject {
         rehearsalFinishTimer?.invalidate()
         langWatchdog?.invalidate()
         langWatchdog = nil
+        floating.detach()
         speech.stop()
         speech.releaseAudioSession()
         scroll.stop()
@@ -407,6 +466,13 @@ final class PrompterViewModel: ObservableObject {
         if firstLayout, !offsets.isEmpty {
             scroll.jump(to: 0)
             if voiceMode { highlight(0) }
+        } else if !offsets.isEmpty {
+            // Relayout (rotation, font change): back on the reading line at
+            // once, not a 260 pt/s glide through the re-laid-out script.
+            scroll.resnap()
+            let idx = currentHighlight
+            currentHighlight = -1
+            highlight(max(0, idx))
         }
     }
 
@@ -464,6 +530,11 @@ final class PrompterViewModel: ObservableObject {
 
     func tapped(characterIndex: Int) {
         guard let idx = tokenRanges.lastIndex(where: { $0.location <= characterIndex }) else { return }
+        seek(to: idx)
+    }
+
+    /// Manual jump (word tap, PiP skip): aligner, scroll and highlight move together.
+    private func seek(to idx: Int) {
         let now = CACurrentMediaTime()
         if voiceMode {
             if idx < currentHighlight - 1 { events.append(.reread(from: currentHighlight, to: idx, t: now)) }

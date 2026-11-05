@@ -56,10 +56,17 @@ struct SettingsSheet: View {
                             .monospacedDigit()
                             .frame(width: 32, alignment: .trailing)
                     }
+                    HStack {
+                        Text("플로팅 글자 크기")
+                        Slider(value: $settings.pipFontSize, in: 16...40, step: 1)
+                        Text("\(Int(settings.pipFontSize))")
+                            .monospacedDigit()
+                            .frame(width: 32, alignment: .trailing)
+                    }
                 } header: {
                     Text("무대 모드")
                 } footer: {
-                    Text("카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요.")
+                    Text("카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요. 플로팅은 대본을 작은 창(PiP)으로 띄워 다른 앱 위에서 읽게 해 줘요.")
                 }
                 Section {
                     HStack {

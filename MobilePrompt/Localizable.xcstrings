@@ -117,11 +117,14 @@
     "볼륨 버튼으로 녹화 시작·정지" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Volume buttons start and stop recording" } } } },
     "4K는 파일이 약 4배 크고 긴 촬영에서 기기가 뜨거워질 수 있어요. HEVC는 파일이 작아지지만 일부 PC·웹에서 재생이 안 될 수 있어요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "4K files are about 4× larger and long takes can heat the phone. HEVC makes smaller files that some PCs and websites can't play." } } } },
     "무대 모드" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Stage Mode" } } } },
-    "카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Script only, no camera. For speeches, lectures, and Zoom or live streams running on another device." } } } },
     "카메라 끄기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Camera Off" } } } },
     "카메라 켜기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Camera On" } } } },
     "무대 글자 크기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Stage Font Size" } } } },
     "마이크 중단됨 · 자동 스크롤" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Mic taken · auto-scroll" } } } },
+    "카메라 없이 대본만 보여요. 연설·강의, 다른 기기로 하는 Zoom·라이브에 알맞아요. 플로팅은 대본을 작은 창(PiP)으로 띄워 다른 앱 위에서 읽게 해 줘요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Script only, no camera. For speeches, lectures, and Zoom or live streams on another device. Floating puts the script in a small picture-in-picture window over other apps." } } } },
+    "플로팅 글자 크기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Floating Font Size" } } } },
+    "플로팅 시작" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Start Floating" } } } },
+    "플로팅 중" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Floating" } } } },
     "가로 모드에서는 카메라 쪽에 폭 55%로 자동 배치돼요 (무대 모드 제외)." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "In landscape, the script is placed at 55% width on the camera side automatically (except in Stage Mode)." } } } }
   },
   "version" : "1.0"

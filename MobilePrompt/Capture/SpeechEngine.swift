@@ -264,17 +264,30 @@ final class SpeechEngine: NSObject {
     /// session is left active across the engine's own stop/start pairs
     /// (language switches restart it every few seconds); `releaseAudioSession`
     /// gives it back when the prompter closes.
-    private func startAudioEngine() {
+    /// Our own audio session (stage mode): also what Picture-in-Picture needs
+    /// to exist before it can start, voice or no voice.
+    func activateAudioSessionIfNeeded() {
+        guard !activatedSession else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            if !activatedSession {
-                // mixWithOthers: never silence a live-stream or call app that
-                // the reader is using alongside the prompter.
-                try session.setCategory(.playAndRecord, mode: .measurement, options: [.mixWithOthers])
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
-                activatedSession = true
-                observeAudioSession()
-            }
+            // mixWithOthers: never silence a live-stream or call app that the
+            // reader is using alongside the prompter.
+            try session.setCategory(.playAndRecord, mode: .measurement, options: [.mixWithOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            activatedSession = true
+            observeAudioSession()
+        } catch {
+            #if DEBUG
+            print("AUD|session failed|\(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func startAudioEngine() {
+        do {
+            activateAudioSessionIfNeeded()
+            let session = AVAudioSession.sharedInstance()
+            _ = session
 
             let engine = AVAudioEngine()
             let input = engine.inputNode

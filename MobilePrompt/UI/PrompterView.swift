@@ -98,6 +98,16 @@ struct PrompterView: View {
                         .frame(width: boxWidth)
                         .padding(.top, topPad)
                         .padding(.bottom, bottomPad)
+                        .overlay {
+                            // The PiP source layer: the floating window flies
+                            // out of here. Nearly invisible on the main screen.
+                            if settings.stageMode {
+                                PipSourceView(controller: vm.floating)
+                                    .frame(width: boxWidth, height: boxWidth * 9 / 16)
+                                    .opacity(0.01)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                     if !hugCamera || Self.cameraOnLeadingEdge { Spacer(minLength: 0) }
                 }
 
@@ -185,6 +195,7 @@ struct PrompterView: View {
             }
         }
         .onChange(of: settings.stageMode) { _, on in vm.setStageMode(on) }
+        .onChange(of: settings.pipFontSize) { _, size in vm.setPipFontSize(size) }
         .onChange(of: settings.voiceMode) { _, voice in vm.setMode(voice: voice) }
         .onChange(of: settings.autoSpeed) { _, v in vm.scroll.autoPxPerSec = v }
         .onChange(of: settings.readingLineFrac) { _, v in vm.scroll.readingLineFrac = v }
@@ -346,6 +357,11 @@ struct PrompterView: View {
     }
 
     private var statusText: String {
+        let base = baseStatusText
+        return vm.floating.isActive ? AppSettings.tr("플로팅 중") + " · " + base : base
+    }
+
+    private var baseStatusText: String {
         if !settings.voiceMode {
             return vm.isPaused ? AppSettings.tr("일시정지") : AppSettings.tr("자동 스크롤")
         }
@@ -442,9 +458,23 @@ struct PrompterView: View {
 
                 Spacer()
 
-                // record button (idle → 3·2·1 countdown → recording)
+                // record button (idle → 3·2·1 countdown → recording), or in
+                // stage mode the floating (PiP) button
                 if settings.stageMode {
-                    Color.clear.frame(width: 74, height: 74)
+                    Button {
+                        vm.startFloating()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .strokeBorder(.white, lineWidth: 4)
+                                .frame(width: 74, height: 74)
+                            Image(systemName: vm.floating.isActive ? "pip.exit" : "pip.enter")
+                                .font(.system(size: 26, weight: .semibold))
+                        }
+                    }
+                    .accessibilityLabel(Text("플로팅 시작"))
+                    .disabled(!vm.floating.isPossible)
+                    .opacity(vm.floating.isPossible ? 1 : 0.35)
                 } else {
                 Button {
                     vm.recordTapped()
