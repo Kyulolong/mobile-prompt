@@ -20,9 +20,9 @@ android {
         applicationId = "com.teaminpact.mobileprompt"
         minSdk = 29
         targetSdk = 36
-        versionCode = 2 // 1 was burned by the first 1.0.0 upload to Play
+        versionCode = 3 // 2 = 1.3.0; 1 was burned by the first 1.0.0 upload to Play
         // Kept in step with iOS (1.3.0) so both stores ship the same feature set under one number.
-        versionName = "1.3.0"
+        versionName = "1.4.0"
         // 64-bit only: the Korean speech model alone is 120 MB in memory,
         // which 32-bit-era devices cannot run acceptably. x86_64 is for the
         // emulator and is split out of per-device downloads by Play anyway.

@@ -65,8 +65,25 @@ auto_prompt 쪽 엔진을 고쳤다면 파일을 `engine-src/`로 다시 복사�
 
 ## 상태
 
-MVP. 시뮬레이터에서 검증된 것: 정렬 엔진(JSC), 음성 따라가기(Mac 마이크), 자동 스크롤, 하이라이트/스크롤 추종, 설정.
-실기기에서 확인 필요: 카메라 프리뷰, 녹화 + 갤러리 저장, 녹화 중 음성 따라가기(마이크 공유), 온디바이스 인식 지연·발열.
+[![CI](https://github.com/Kyulolong/mobile-prompt/actions/workflows/ci.yml/badge.svg)](https://github.com/Kyulolong/mobile-prompt/actions/workflows/ci.yml)
+
+- App Store: 1.3 출시(2026-10-27). Play: 1.3.0 업로드 준비(`store/release-checklist.md`).
+- 1.4.0 작업 중(브랜치 `android`): 무대 모드·플로팅(PiP), 연습 모드, 대본 마크업·통계, 파일 가져오기·검색·복제,
+  4K/HEVC·볼륨 버튼 녹화, 안정성 수정. 스토어 문구는 `store/listing-1.4.md`.
+- 실기기(iPhone 12 mini·Galaxy S21)에서 확인된 것: 카메라 프리뷰, 녹화 + 갤러리 저장, 녹화 중 음성 따라가기, 혼합 언어 전환,
+  퍼플즈 핸드오프. 1.4의 플로팅(백그라운드 음성인식, PiP 시작)은 실기기 검증이 남아 있다.
+
+## 테스트
+
+```bash
+# iOS — 정렬 엔진 골든(안드로이드와 같은 JSON), SRT 픽스처, 핸드오프, 대본 마크업, 연습 통계
+xcodebuild -project MobilePrompt.xcodeproj -scheme MobilePrompt \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO test
+# Android
+cd android && ./gradlew :app:testDebugUnitTest
+```
+
+GitHub Actions(`.github/workflows/ci.yml`)가 `main`·`android` 푸시와 PR마다 둘 다 돌린다.
 
 ## 퍼플즈 연동
 

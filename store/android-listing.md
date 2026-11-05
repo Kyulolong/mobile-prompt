@@ -101,6 +101,8 @@ Supports Korean and English scripts — the language is detected automatically.
 • Speech recognition runs fully on-device — works offline, nothing leaves your phone
 ```
 
+1.4.0의 출시 노트와 설명 추가분은 `store/listing-1.4.md`.
+
 ## 그래픽
 
 - 앱 아이콘 512×512: `store/android/icon-512.png`

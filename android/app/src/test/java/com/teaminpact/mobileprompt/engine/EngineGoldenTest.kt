@@ -9,8 +9,9 @@ import org.junit.Test
 /**
  * Replays outputs recorded from the TypeScript engine (the web app's, used
  * verbatim by iOS) against the Kotlin port. Any divergence here means Android
- * would track a script differently from iPhone. Regenerate the JSON with the
- * generator in the repo's engine-src tooling when the TS engine changes.
+ * would track a script differently from iPhone. When the TS engine changes,
+ * regenerate the JSON in place with `npx -y tsx engine-src/golden.ts` (it
+ * keeps the recorded inputs and rewrites the expected outputs).
  */
 class EngineGoldenTest {
     private val golden: JSONObject by lazy {

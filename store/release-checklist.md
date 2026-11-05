@@ -1,4 +1,4 @@
-# 출시 체크리스트 — iOS 1.3.0 · Android 1.0.0 (2026-10-27)
+# 출시 체크리스트 — iOS 1.3.0 (19) · Android 1.3.0 (2) (2026-10-27)
 
 두 콘솔 모두 웹에서 손으로 한다. 붙여 넣을 문구는 파일에 있고, 아래는 **순서와 클릭할 곳**만 적는다.
 
@@ -71,3 +71,14 @@
 - Play 라이브 확인: `https://play.google.com/store/apps/details?id=com.teaminpact.mobileprompt`
 - `docs/perplz-integration.md`의 스토어 링크가 위 둘과 맞는지 확인(이미 같은 값).
 - 퍼플즈 노트 연동(2단계)은 이후에. 조사 결과는 메모리에 적어 뒀다.
+
+## D. 1.4.0 (iOS 1.4.0 (20) · Android 1.4.0 (3))
+
+문구는 `store/listing-1.4.md`. 올리기 전에:
+
+1. 실기기 체크리스트(`~/.claude/plans/1-3-0-warm-piglet.md`의 "실기기" 절) — 특히 플로팅: iPhone 12 mini에서 PiP가 뜨고 홈으로
+   나가도 음성 따라가기가 이어지는지, Galaxy S21에서 PiP 중 마이크가 silenced 되지 않는지. 안 되면 문구를 낮춘다(listing-1.4.md 머리말).
+2. iOS: `xcodebuild archive` → ASC에 **버전 이름 `1.4.0`**(1.3 때처럼 "1.4"로 만들지 않는다) → 빌드 20 → 심사 노트에 listing-1.4.md의
+   무대 모드/PiP 문단 추가.
+3. Android: `./gradlew :app:bundleRelease` → 내부 테스트 → 프로덕션. 새 권한·선언 없음.
+

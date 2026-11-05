@@ -27,6 +27,7 @@ CameraX 녹음(CAMCORDER)과 인식용 AudioRecord(VOICE_RECOGNITION)가 동시�
 ```bash
 cd android
 ./scripts/fetch-models.sh          # sherpa-onnx AAR(49 MB) + 음성 모델(~180 MB) 다운로드, git에 없음 — 처음 한 번
+                                   # (--aar-only: 컴파일·단위 테스트만 할 때. CI가 이렇게 쓴다)
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:testDebugUnitTest    # 엔진 골든 테스트
 ./gradlew :app:bundleDebug          # 디버그 AAB (에셋팩 포함)
@@ -81,11 +82,15 @@ adb shell "am start -a android.intent.action.VIEW -d 'voiceprompter://script?s=%
 
 ```
 app/src/main/java/com/teaminpact/mobileprompt/
-  engine/    Jamo, Norm, Script, Align, PromptEngine (TS 포팅), ScrollModel, Srt
+  engine/    Jamo, Norm, Script, Align, PromptEngine (TS 포팅), ScrollModel, Srt,
+             ScriptMarkup(**강조**·[메모]), RehearsalStats(연습 결과), ScriptStats(편집기 통계)
   speech/    SpeechEngine (sherpa-onnx + AudioRecord)
   capture/   CaptureController (CameraX)
-  model/     AppSettings, ScriptStore
-  ui/        AppRoot, LibraryScreen, EditorScreen, PrompterScreen, PrompterViewModel, PromptTextView, SettingsSheet
-app/src/test/resources/engine-golden.json   TS 엔진에서 생성한 골든 데이터
+  model/     AppSettings, ScriptStore, Handoff(퍼플즈 딥링크), TextDecoding(파일·공유 텍스트 디코딩)
+  ui/        AppRoot, LibraryScreen, EditorScreen, PrompterScreen, PrompterViewModel, PromptTextView,
+             RehearsalResultSheet, SettingsSheet
+app/src/test/java/.../engine/   EngineGoldenTest, NgramReseekTest, SrtTest, ScriptMarkupTest, RehearsalStatsTest
+app/src/test/java/.../model/    HandoffTest
+app/src/test/resources/engine-golden.json   TS 엔진에서 생성한 골든 데이터 (재생성: `npx -y tsx engine-src/golden.ts`)
 speechmodels/                                install-time 에셋팩 (모델 파일은 fetch-models.sh)
 ```
