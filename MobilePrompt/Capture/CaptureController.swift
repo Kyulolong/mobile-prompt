@@ -12,7 +12,7 @@ import UIKit
 /// both the asset writer and the speech engine, which is what makes
 /// "voice-follow while recording" possible at all on iOS.
 final class CaptureController: NSObject, ObservableObject {
-    enum CameraState { case starting, ready, unavailable }
+    enum CameraState { case starting, ready, unavailable, denied }
 
     @Published var isRecording = false
     @Published var recordingSeconds = 0
@@ -34,6 +34,16 @@ final class CaptureController: NSObject, ObservableObject {
     /// The last recording's movie file, kept (after it is in Photos) so it can
     /// be shared together with its subtitles; replaced on the next recording.
     @Published var lastRecordingURL: URL?
+    /// File stem of the running/last recording (`VoicePrompter-yyyyMMdd-HHmmss`);
+    /// the subtitle file reuses it so the pair shares one name everywhere.
+    @Published var lastRecordingName: String?
+
+    private static let stampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyyMMdd-HHmmss"
+        return f
+    }()
 
     var cameraAvailable: Bool { cameraState == .ready }
 
@@ -92,8 +102,13 @@ final class CaptureController: NSObject, ObservableObject {
             session.beginConfiguration()
             session.sessionPreset = .hd1920x1080
 
+            // Without camera permission the session runs audio-only: voice
+            // follow keeps working and the UI can say what is missing instead
+            // of reporting "no camera on this device".
+            let camAuthorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
             var hasCamera = false
-            if let cam = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+            if camAuthorized,
+               let cam = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
                let input = try? AVCaptureDeviceInput(device: cam),
                session.canAddInput(input) {
                 session.addInput(input)
@@ -130,7 +145,7 @@ final class CaptureController: NSObject, ObservableObject {
                 #endif
             }
             DispatchQueue.main.async {
-                self.cameraState = hasCamera ? .ready : .unavailable
+                self.cameraState = hasCamera ? .ready : (camAuthorized ? .unavailable : .denied)
                 self.setupRotationCoordinatorIfReady()
             }
         }
@@ -207,8 +222,8 @@ final class CaptureController: NSObject, ObservableObject {
                 try? FileManager.default.removeItem(at: previous)
                 DispatchQueue.main.async { self.lastRecordingURL = nil }
             }
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("prompt-\(UUID().uuidString).mov")
+            let name = "VoicePrompter-" + Self.stampFormatter.string(from: Date())
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).mov")
             guard let w = try? AVAssetWriter(outputURL: url, fileType: .mov) else { return }
 
             let vSettings = videoOutput.recommendedVideoSettingsForAssetWriter(writingTo: .mov)
@@ -229,6 +244,7 @@ final class CaptureController: NSObject, ObservableObject {
             recordingURL = url
 
             DispatchQueue.main.async {
+                self.lastRecordingName = name
                 self.isRecording = true
                 self.recordingSeconds = 0
                 self.saveMessage = nil

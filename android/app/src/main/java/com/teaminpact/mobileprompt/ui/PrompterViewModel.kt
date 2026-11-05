@@ -100,14 +100,17 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     // Subtitles: (token, host-clock time) for every accepted cursor move while recording.
     private val recWordTimes = ArrayList<WordTime>()
+    /** Whether the running take started in voice mode: only such a take has a real trail. */
+    private var srtEligible = false
 
     init {
         capture.onRecordingStarted = {
             recWordTimes.clear()
             srtFile = null
+            srtEligible = voiceMode
         }
         capture.onRecordingFinished = {
-            if (recWordTimes.isNotEmpty()) finishSRT()
+            if (srtEligible && recWordTimes.isNotEmpty()) finishSRT()
         }
     }
 
@@ -199,6 +202,8 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
             }
         } else {
             speech.stop()
+            // A take that switches to auto-scroll mid-way loses its trail.
+            if (capture.isRecording) srtEligible = false
         }
     }
 
@@ -265,7 +270,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         scroll.jump(idx.toDouble())
         highlight(idx)
         lost = false
-        if (capture.isRecording) recWordTimes.add(WordTime(idx, Clock.now()))
+        if (capture.isRecording && voiceMode) recWordTimes.add(WordTime(idx, Clock.now()))
         lastLangSwitch = 0.0 // manual jump may cross a language zone — allow an immediate switch
         maybeSwitchSTT(idx)
     }

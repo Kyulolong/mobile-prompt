@@ -172,10 +172,17 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         vm.stopAll()
         onClose()
     }
-    // An edge swipe is easy to make by accident; don't let it end a take
-    // unasked. (X is a deliberate tap and closes right away, as on iOS.)
+    // Closing mid-take (X or back) asks first. "Stop and close" then waits for
+    // the save dialog — share / back to Perplz — before the prompter goes away;
+    // closing right away would clear the ViewModel and lose that dialog.
     var confirmClose by remember { mutableStateOf(false) }
-    BackHandler { if (vm.capture.isRecording) confirmClose = true else close() }
+    var closeAfterSave by remember { mutableStateOf(false) }
+    fun requestClose() { if (vm.capture.isRecording) confirmClose = true else close() }
+    fun finishSaveFlow() {
+        vm.capture.saveMessage = null
+        if (closeAfterSave) close()
+    }
+    BackHandler { requestClose() }
     LaunchedEffect(vm.capture.isRecording) { if (!vm.capture.isRecording) confirmClose = false }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -213,7 +220,7 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         ScriptBox(vm, settings)
 
         Column(Modifier.fillMaxSize().safeDrawingPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            TopBar(vm, settings, onClose = { close() }, onSettings = { showSettings = true })
+            TopBar(vm, settings, onClose = { requestClose() }, onSettings = { showSettings = true })
             AnimatedVisibility(visible = vm.capture.isRecording) { RecordingBadge(vm.capture.recordingSeconds) }
             Spacer(Modifier.weight(1f))
             BottomBar(vm, settings)
@@ -257,7 +264,15 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
             title = { Text(stringResource(R.string.close_while_recording_title)) },
             text = { Text(stringResource(R.string.close_while_recording_body)) },
             confirmButton = {
-                TextButton(onClick = { confirmClose = false; close() }) { Text(stringResource(R.string.stop_and_close)) }
+                TextButton(onClick = {
+                    confirmClose = false
+                    if (vm.capture.isRecording) {
+                        closeAfterSave = true
+                        vm.capture.stopRecording() // the save dialog follows, then close()
+                    } else {
+                        close()
+                    }
+                }) { Text(stringResource(R.string.stop_and_close)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmClose = false }) { Text(stringResource(R.string.keep_recording)) }
@@ -270,7 +285,7 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
     vm.capture.saveMessage?.let { msg ->
         val shareIntent = vm.recordingShareIntent()
         AlertDialog(
-            onDismissRequest = { vm.capture.saveMessage = null },
+            onDismissRequest = { finishSaveFlow() },
             title = { Text(stringResource(R.string.notice)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -278,24 +293,24 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                     Spacer(Modifier.height(6.dp))
                     if (shareIntent != null) {
                         TextButton(onClick = {
-                            vm.capture.saveMessage = null
                             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video_srt)))
+                            finishSaveFlow()
                         }) { Text(stringResource(R.string.share_video_srt)) }
                     }
                     if (returnUrl != null) {
                         TextButton(onClick = {
-                            vm.capture.saveMessage = null
                             try {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(returnUrl)))
                             } catch (_: android.content.ActivityNotFoundException) {
                                 // Perplz not installed any more: nothing to go back to.
                             }
+                            finishSaveFlow()
                         }) { Text(stringResource(R.string.back_to_perplz)) }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { vm.capture.saveMessage = null }) { Text(stringResource(R.string.ok)) }
+                TextButton(onClick = { finishSaveFlow() }) { Text(stringResource(R.string.ok)) }
             },
         )
     }

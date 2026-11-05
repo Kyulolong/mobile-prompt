@@ -6,8 +6,13 @@ struct PrompterView: View {
     @EnvironmentObject private var settings: AppSettings
     @StateObject private var vm = PrompterViewModel()
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
     @State private var showSRTShare = false
+    /// X while recording asks first; "stop and close" then waits for the
+    /// save alert (share / back to Perplz) before the prompter goes away.
+    @State private var confirmClose = false
+    @State private var closeAfterSave = false
     let script: String
     /// Set when the script came from Perplz: offers "Back to Perplz" after saving.
     var returnURL: URL? = nil
@@ -50,6 +55,14 @@ struct PrompterView: View {
                     }
                     .foregroundStyle(.white.opacity(0.25))
                 }
+            case .denied:
+                VStack(spacing: 8) {
+                    Image(systemName: "video.slash")
+                        .font(.largeTitle)
+                    Text("카메라 권한이 필요해요")
+                        .font(.caption)
+                }
+                .foregroundStyle(.white.opacity(0.25))
             }
             Color.black.opacity(settings.scrimOpacity)
                 .ignoresSafeArea()
@@ -94,6 +107,9 @@ struct PrompterView: View {
                 if vm.capture.isRecording {
                     recordingBadge
                 }
+                if vm.capture.cameraState == .denied {
+                    cameraDeniedBanner
+                }
                 Spacer()
                 if vm.suggestedLang != nil {
                     languageHint
@@ -111,9 +127,20 @@ struct PrompterView: View {
                     .allowsHitTesting(false)
             }
 
-            if vm.permissionState == .denied {
+            if let msg = vm.errorMessage {
+                Text(msg)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white)
+                    .padding(24)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal, 32)
+            }
+
+            // Both overlays are about voice-follow; auto-scroll never needs them.
+            if settings.voiceMode, vm.permissionState == .denied {
                 permissionOverlay
-            } else if vm.speechStatus == .dictationDisabled {
+            } else if settings.voiceMode, vm.speechStatus == .dictationDisabled {
                 dictationOverlay
             }
         }
@@ -122,32 +149,63 @@ struct PrompterView: View {
             await vm.start(script: script, settings: settings)
         }
         .onDisappear { vm.stopAll() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { vm.recheckPermissions() }
+        }
         .onChange(of: settings.voiceMode) { _, voice in vm.setMode(voice: voice) }
         .onChange(of: settings.autoSpeed) { _, v in vm.scroll.autoPxPerSec = v }
         .onChange(of: settings.readingLineFrac) { _, v in vm.scroll.readingLineFrac = v }
         .onChange(of: settings.highlightStyle) { _, v in vm.setHighlightStyle(v) }
         .sheet(isPresented: $showSettings) { SettingsSheet(compact: true) }
+        .alert("녹화를 멈출까요?", isPresented: $confirmClose) {
+            Button("멈추고 닫기", role: .destructive) {
+                if vm.capture.isRecording {
+                    closeAfterSave = true
+                    vm.capture.stopRecording() // the save alert follows, then closeNow()
+                } else {
+                    closeNow()
+                }
+            }
+            Button("계속 녹화", role: .cancel) {}
+        } message: {
+            Text("프롬프터가 닫혀요. 지금까지 찍은 영상은 갤러리에 저장돼요.")
+        }
         .alert("안내", isPresented: saveAlertBinding) {
             if !shareItems.isEmpty {
                 Button("영상·자막 공유") {
                     vm.capture.saveMessage = nil
-                    showSRTShare = true
+                    showSRTShare = true // closes after the share sheet, if asked to
                 }
             }
             if let returnURL {
                 Button("퍼플즈로 돌아가기") {
                     vm.capture.saveMessage = nil
                     UIApplication.shared.open(returnURL)
+                    if closeAfterSave { closeNow() }
                 }
             }
-            Button("확인") { vm.capture.saveMessage = nil }
+            Button("확인") {
+                vm.capture.saveMessage = nil
+                if closeAfterSave { closeNow() }
+            }
         } message: {
             Text(vm.capture.saveMessage ?? "")
         }
-        .sheet(isPresented: $showSRTShare) {
+        .sheet(isPresented: $showSRTShare, onDismiss: { if closeAfterSave { closeNow() } }) {
             ActivityView(items: shareItems)
                 .presentationDetents([.medium, .large])
         }
+    }
+
+    private func closeNow() {
+        vm.stopAll()
+        dismiss()
+    }
+
+    /// X: a deliberate tap closes right away — unless a take is running, in
+    /// which case ask, and keep the prompter up until the save alert is done.
+    private func requestClose() {
+        if vm.capture.isRecording { confirmClose = true } else { closeNow() }
     }
 
     private var saveAlertBinding: Binding<Bool> {
@@ -210,6 +268,30 @@ struct PrompterView: View {
         .transition(.opacity.combined(with: .scale))
     }
 
+    /// Camera permission was refused: the script and voice-follow still work,
+    /// but recording can't. Sits under the top bar where it is reachable.
+    private var cameraDeniedBanner: some View {
+        Button {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "video.slash.fill")
+                    .font(.system(size: 12))
+                Text("설정 > 보이스 프롬프터에서 카메라를 켜 주세요")
+                    .font(.footnote)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 8)
+            .background(.black.opacity(0.5), in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.2), lineWidth: 1))
+        }
+    }
+
     private var isDemoBackdrop: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.environment["DEMO_CAMERA"] != nil
@@ -253,8 +335,7 @@ struct PrompterView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
-                vm.stopAll()
-                dismiss()
+                requestClose()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 17, weight: .semibold))
@@ -403,6 +484,10 @@ struct PrompterView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+            Button("자동 스크롤로 전환") {
+                settings.voiceMode = false
+            }
+            .buttonStyle(.bordered)
         }
         .foregroundStyle(.white)
         .padding(28)

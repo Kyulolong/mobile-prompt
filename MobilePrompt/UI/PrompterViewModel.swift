@@ -1,6 +1,8 @@
 import Foundation
 import UIKit
 import Combine
+import AVFoundation
+import Speech
 
 /// The hub that wires everything together, mirroring the web app's
 /// useController: speech -> aligner -> scroll + imperative word highlight
@@ -57,9 +59,14 @@ final class PrompterViewModel: ObservableObject {
             .sink { [weak self] recording in
                 guard let self else { return }
                 if recording {
+                    if let old = self.srtFileURL { try? FileManager.default.removeItem(at: old) }
                     self.recWordTimes = []
                     self.srtFileURL = nil
-                } else if !self.recWordTimes.isEmpty {
+                    // Only a take read in voice mode has a real alignment trail;
+                    // word taps during an auto-scroll take must not yield a
+                    // partial SRT.
+                    self.srtEligible = self.voiceMode
+                } else if self.srtEligible, !self.recWordTimes.isEmpty {
                     self.finishSRT()
                 }
             }
@@ -69,67 +76,19 @@ final class PrompterViewModel: ObservableObject {
     // MARK: subtitles (SRT)
 
     /// (token, host-clock time) for every accepted cursor move while recording.
-    private var recWordTimes: [(token: Int, t: Double)] = []
+    private var recWordTimes: [WordTime] = []
+    /// Whether the running take started in voice mode (see the recording sink).
+    private var srtEligible = false
     /// Generated after a voice-mode recording ends; drives the share button.
     @Published var srtFileURL: URL?
 
     private func finishSRT() {
-        guard let recStart = capture.lastRecordingStart, tokens.count > 0 else { return }
-        // Earliest time the cursor reached (at least) each token.
-        var tokenTime = [Double?](repeating: nil, count: tokens.count)
-        var filled = -1
-        for entry in recWordTimes where entry.token > filled {
-            for j in (filled + 1)...min(entry.token, tokens.count - 1) where tokenTime[j] == nil {
-                tokenTime[j] = entry.t
-            }
-            filled = max(filled, entry.token)
-        }
-
-        var cues: [(start: Double, end: Double, text: String)] = []
-        var rangeStart = 0
-        var charCount = 0
-        for i in 0..<tokens.count {
-            let raw = tokens[i].raw
-            charCount += raw.count + 1
-            let endsSentence = raw.hasSuffix(".") || raw.hasSuffix("!") || raw.hasSuffix("?") || raw.hasSuffix("…")
-            let nextBreaks = i + 1 < tokens.count ? tokens[i + 1].breakBefore : true
-            // Keep cues to 1–2 subtitle lines: hard budget ~26 chars, and take
-            // a comma as a break point once past ~14.
-            let overBudget = charCount >= 26
-            let commaBreak = raw.hasSuffix(",") && charCount >= 14
-            guard endsSentence || nextBreaks || overBudget || commaBreak || i == tokens.count - 1 else { continue }
-            defer { rangeStart = i + 1; charCount = 0 }
-            let range = rangeStart...i
-            let times = range.compactMap { tokenTime[$0] }
-            guard let first = times.first, let last = times.last else { continue }
-            let start = max(0, first - recStart - 0.25)
-            let end = max(last - recStart + 0.8, start + 0.8)
-            let text = range.map { tokens[$0].raw }.joined(separator: " ")
-            cues.append((start, end, text))
-        }
-        guard !cues.isEmpty else { return }
-
-        // Monotonic, non-overlapping.
-        for i in 1..<cues.count {
-            if cues[i].start < cues[i - 1].end {
-                cues[i].start = cues[i - 1].end + 0.01
-                cues[i].end = max(cues[i].end, cues[i].start + 0.5)
-            }
-        }
-
-        func stamp(_ s: Double) -> String {
-            let ms = Int((s * 1000).rounded())
-            return String(format: "%02d:%02d:%02d,%03d", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
-        }
-        var srt = ""
-        for (i, c) in cues.enumerated() {
-            srt += "\(i + 1)\n\(stamp(c.start)) --> \(stamp(c.end))\n\(c.text)\n\n"
-        }
-
-        let df = DateFormatter()
-        df.dateFormat = "yyyyMMdd-HHmmss"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("VoicePrompter-\(df.string(from: Date())).srt")
+        guard let recStart = capture.lastRecordingStart,
+              let name = capture.lastRecordingName,
+              let srt = Srt.build(tokens: tokens, trail: recWordTimes, recStart: recStart) else { return }
+        // Same stem as the movie (VoicePrompter-yyyyMMdd-HHmmss) so the pair
+        // stays together in the share sheet and on the receiving side.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).srt")
         try? srt.write(to: url, atomically: true, encoding: .utf8)
         srtFileURL = url
     }
@@ -175,16 +134,15 @@ final class PrompterViewModel: ObservableObject {
             return
         }
 
+        // A denied mic/speech permission only blocks voice-follow: the camera,
+        // auto-scroll and recording still run, and the overlay offers the
+        // switch (mirrors the Android screen).
         let perms = await CaptureController.requestPermissions()
-        var speechOK = true
-        if voiceMode {
-            speechOK = await SpeechEngine.requestPermission()
+        var micOK = perms.mic
+        if voiceMode, micOK {
+            micOK = await SpeechEngine.requestPermission()
         }
-        guard perms.mic || !voiceMode, speechOK else {
-            permissionState = .denied
-            return
-        }
-        permissionState = .granted
+        permissionState = micOK ? .granted : .denied
 
         // No sample buffers arrive while the capture session is interrupted,
         // and the recognition task goes stale — rebuild the pipeline rather
@@ -198,6 +156,8 @@ final class PrompterViewModel: ObservableObject {
                 self.startVoicePipeline()
             }
         }
+        // Reading a script is a long, touch-free activity: never auto-lock.
+        UIApplication.shared.isIdleTimerDisabled = true
         capture.configureAndStart()
         scroll.start()
         lastProgressAt = CACurrentMediaTime()
@@ -213,9 +173,19 @@ final class PrompterViewModel: ObservableObject {
             }
         }
 
-        if voiceMode {
+        if voiceMode, micOK {
             startVoicePipeline()
         }
+    }
+
+    /// Coming back from Settings: if the user just granted what was missing,
+    /// start listening without making them reopen the prompter.
+    func recheckPermissions() {
+        guard voiceMode, permissionState == .denied,
+              AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+              SFSpeechRecognizer.authorizationStatus() == .authorized else { return }
+        permissionState = .granted
+        startVoicePipeline()
     }
 
     private func startVoicePipeline() {
@@ -259,6 +229,7 @@ final class PrompterViewModel: ObservableObject {
         if capture.isRecording { capture.stopRecording() }
         capture.stopSession()
         speakingTimer?.invalidate()
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 
     func setMode(voice: Bool) {
@@ -266,14 +237,16 @@ final class PrompterViewModel: ObservableObject {
         scroll.mode = voice ? .voice : .auto
         if voice {
             Task {
-                guard await SpeechEngine.requestPermission() else {
-                    permissionState = .denied
-                    return
-                }
-                startVoicePipeline()
+                let micOK = await AVCaptureDevice.requestAccess(for: .audio)
+                var speechOK = false
+                if micOK { speechOK = await SpeechEngine.requestPermission() }
+                permissionState = speechOK ? .granted : .denied
+                if speechOK { startVoicePipeline() }
             }
         } else {
             speech.stop()
+            // A take that switches to auto-scroll mid-way loses its trail.
+            if capture.isRecording { srtEligible = false }
         }
     }
 
@@ -331,7 +304,7 @@ final class PrompterViewModel: ObservableObject {
         scroll.jump(to: Double(idx))
         highlight(idx)
         lost = false
-        if capture.isRecording { recWordTimes.append((idx, CACurrentMediaTime())) }
+        if capture.isRecording, voiceMode { recWordTimes.append(WordTime(token: idx, t: CACurrentMediaTime())) }
         lastLangSwitch = 0 // manual jump may cross a language zone — allow an immediate switch
         maybeSwitchSTT(for: idx)
     }
@@ -479,7 +452,7 @@ final class PrompterViewModel: ObservableObject {
         if apply {
             if r.moved {
                 lastProgressAt = now
-                if capture.isRecording { recWordTimes.append((r.token, now)) }
+                if capture.isRecording { recWordTimes.append(WordTime(token: r.token, t: now)) }
             }
             highlight(r.token)
             scroll.update(confirmedToken: r.token, tokensPerSec: r.tokensPerSec,
