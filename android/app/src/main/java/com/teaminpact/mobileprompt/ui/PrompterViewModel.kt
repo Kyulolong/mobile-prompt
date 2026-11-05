@@ -16,6 +16,9 @@ import com.teaminpact.mobileprompt.engine.Clock
 import com.teaminpact.mobileprompt.engine.DisplayToken
 import com.teaminpact.mobileprompt.engine.EngineLang
 import com.teaminpact.mobileprompt.engine.PromptEngine
+import com.teaminpact.mobileprompt.engine.RehearsalEvent
+import com.teaminpact.mobileprompt.engine.RehearsalReport
+import com.teaminpact.mobileprompt.engine.RehearsalStats
 import com.teaminpact.mobileprompt.engine.ScriptMarkup
 import com.teaminpact.mobileprompt.engine.ScrollModel
 import com.teaminpact.mobileprompt.engine.TokenKind
@@ -100,19 +103,126 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
     var scriptLang by mutableStateOf(EngineLang.KO)
         private set
 
-    // Subtitles: (token, host-clock time) for every accepted cursor move while recording.
-    private val recWordTimes = ArrayList<WordTime>()
+    /**
+     * (token, host-clock time) for every accepted cursor move in voice mode —
+     * the whole session. Recording and rehearsal each use a slice of it.
+     */
+    private val trail = ArrayList<WordTime>()
+    /** Trouble the aligner noticed (lost, re-reads), same clock as [trail]. */
+    private val events = ArrayList<RehearsalEvent>()
+    private var recordingTrailStart = 0
+    private var recordingEventsStart = 0
+    private var lastTakeTrail: List<WordTime> = emptyList()
+    private var lastTakeEvents: List<RehearsalEvent> = emptyList()
+    private var lastTakeSeconds = 0.0
+    /** The last take was read in voice mode long enough to have a summary. */
+    var takeReportAvailable by mutableStateOf(false)
+        private set
     /** Whether the running take started in voice mode: only such a take has a real trail. */
     private var srtEligible = false
+    private var settings: AppSettings? = null
+
+    // MARK: rehearsal
+
+    var rehearsalActive by mutableStateOf(false)
+        private set
+    var rehearsalSeconds by mutableStateOf(0)
+        private set
+    /** Set when a rehearsal or take summary is ready; drives the result sheet. */
+    var report by mutableStateOf<RehearsalReport?>(null)
+    /** Short transient message (e.g. "nothing was read yet"). */
+    var toast by mutableStateOf<String?>(null)
+        private set
+    private var rehearsalJob: Job? = null
+    private var rehearsalFinishJob: Job? = null
+    private var toastJob: Job? = null
+    /** Last token the reader can actually say — reaching it (then 1.5 s of silence) ends a rehearsal. */
+    private var lastSpokenToken = -1
 
     init {
         capture.onRecordingStarted = {
-            recWordTimes.clear()
             srtFile = null
+            takeReportAvailable = false
+            recordingTrailStart = trail.size
+            recordingEventsStart = events.size
             srtEligible = voiceMode
         }
         capture.onRecordingFinished = {
-            if (srtEligible && recWordTimes.isNotEmpty()) finishSRT()
+            val slice = trail.subList(minOf(recordingTrailStart, trail.size), trail.size).toList()
+            lastTakeTrail = slice
+            lastTakeEvents = events.subList(minOf(recordingEventsStart, events.size), events.size).toList()
+            lastTakeSeconds = capture.recordingSeconds.toDouble()
+            takeReportAvailable = srtEligible && slice.size >= 2
+            if (srtEligible && slice.isNotEmpty()) finishSRT(slice)
+        }
+    }
+
+    /**
+     * Read the script in voice mode without the camera rolling, then get a
+     * summary: time, pace, pauses, and the sentences that caused trouble.
+     */
+    fun startRehearsal() {
+        if (!voiceMode || capture.isRecording || countdown != null || tokens.isEmpty()) return
+        trail.clear()
+        events.clear()
+        engine.reset(0)
+        pendingJumpTarget = null
+        lost = false
+        scroll.jump(0.0)
+        highlight(0)
+        rehearsalActive = true
+        rehearsalSeconds = 0
+        rehearsalJob?.cancel()
+        rehearsalJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                rehearsalSeconds++
+            }
+        }
+    }
+
+    fun finishRehearsal() {
+        if (!rehearsalActive) return
+        rehearsalActive = false
+        rehearsalJob?.cancel()
+        rehearsalJob = null
+        rehearsalFinishJob?.cancel()
+        rehearsalFinishJob = null
+        val r = RehearsalStats.compute(tokens, trail.toList(), events.toList(), activeLang, RehearsalReport.Kind.REHEARSAL)
+        if (r == null) {
+            showToast(getApplication<Application>().getString(R.string.nothing_read))
+            return
+        }
+        // A real read-through teaches the editor the reader's own pace.
+        if (trail.size >= 20) {
+            settings?.let { if (r.paceUnit == RehearsalReport.PaceUnit.WORDS_PER_MINUTE) it.paceEn = r.pace else it.paceKo = r.pace }
+        }
+        report = r
+    }
+
+    /** Summary of the take that just finished (voice mode only). */
+    fun showTakeReport() {
+        if (!takeReportAvailable) return
+        report = RehearsalStats.compute(tokens, lastTakeTrail, lastTakeEvents, activeLang, RehearsalReport.Kind.TAKE, lastTakeSeconds) ?: return
+    }
+
+    private fun armRehearsalFinish(token: Int) {
+        if (!rehearsalActive) return
+        rehearsalFinishJob?.cancel()
+        rehearsalFinishJob = null
+        if (token < lastSpokenToken) return
+        rehearsalFinishJob = viewModelScope.launch {
+            delay(1500)
+            finishRehearsal()
+        }
+    }
+
+    private fun showToast(message: String) {
+        toast = message
+        toastJob?.cancel()
+        toastJob = viewModelScope.launch {
+            delay(2200)
+            toast = null
         }
     }
 
@@ -120,6 +230,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
     fun start(script: String, settings: AppSettings, micGranted: Boolean) {
         if (started) return
         started = true
+        this.settings = settings
         voiceMode = settings.voiceMode
         scriptText = script
         highlightColor = highlightColor(settings.highlightStyle)
@@ -138,6 +249,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         val engineTokens = engine.load(ScriptMarkup.engineText(script), alignOverrides, chosen)
         tokens = ScriptMarkup.apply(engineTokens, script) ?: engine.load(script, alignOverrides, chosen)
         computeLangZones(chosen)
+        lastSpokenToken = tokens.indexOfLast { t -> t.kind != TokenKind.NOTE && t.display.any { it.isLetterOrDigit() } }
         if (tokens.isEmpty()) {
             errorMessage = getApplication<Application>().getString(R.string.script_empty)
             return
@@ -171,6 +283,9 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stopAll() {
         cancelCountdown()
+        rehearsalActive = false
+        rehearsalJob?.cancel()
+        rehearsalFinishJob?.cancel()
         langWatchdog?.cancel()
         langWatchdog = null
         speech.stop()
@@ -239,6 +354,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Record button: idle → countdown → recording. Tapping mid-countdown cancels. */
     fun recordTapped() {
+        if (rehearsalActive) return
         if (capture.isRecording) {
             capture.stopRecording()
         } else if (countdown != null) {
@@ -271,12 +387,17 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         val ranges = textView?.ranges ?: return
         val idx = ranges.indexOfLast { it.first <= characterIndex }
         if (idx < 0) return
+        val now = Clock.now()
+        if (voiceMode) {
+            if (idx < currentHighlight - 1) events.add(RehearsalEvent.Reread(currentHighlight, idx, now))
+            trail.add(WordTime(idx, now))
+        }
         engine.seek(idx)
         scroll.update(confirmedToken = idx)
         scroll.jump(idx.toDouble())
         highlight(idx)
         lost = false
-        if (capture.isRecording && voiceMode) recWordTimes.add(WordTime(idx, Clock.now()))
+        armRehearsalFinish(idx)
         lastLangSwitch = 0.0 // manual jump may cross a language zone — allow an immediate switch
         maybeSwitchSTT(idx)
     }
@@ -385,14 +506,19 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         if (apply) {
             if (r.moved) {
                 lastProgressAt = now
-                if (capture.isRecording) recWordTimes.add(WordTime(r.token, now))
+                trail.add(WordTime(r.token, now))
+                if (r.token <= current - 2) events.add(RehearsalEvent.Reread(current, r.token, now))
+                armRehearsalFinish(r.token)
             }
             highlight(r.token)
             scroll.update(confirmedToken = r.token, tokensPerSec = r.tokensPerSec, speaking = true, lost = r.lost)
         } else {
             scroll.update(speaking = true, lost = r.lost)
         }
-        if (lost != r.lost) lost = r.lost
+        if (lost != r.lost) {
+            lost = r.lost
+            if (r.lost) events.add(RehearsalEvent.Lost(r.token, now))
+        }
         maybeSwitchSTT(r.token)
 
         // Speech-activity gate: silence for a beat freezes the creep.
@@ -418,10 +544,10 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
 
     // MARK: subtitles
 
-    private fun finishSRT() {
+    private fun finishSRT(trail: List<WordTime>) {
         val recStart = capture.lastRecordingStart ?: return
         val name = capture.lastRecordingName ?: return
-        val srt = buildSrt(tokens, recWordTimes, recStart) ?: return
+        val srt = buildSrt(tokens, trail, recStart) ?: return
         val dir = File(getApplication<Application>().cacheDir, "srt").apply { mkdirs() }
         val f = File(dir, "$name.srt")
         f.writeText(srt)

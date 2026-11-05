@@ -29,6 +29,12 @@ class AppSettings(context: Context) {
     /** UI language: "system" | "ko" | "en" — applies immediately. */
     var appLanguage: String by pref("appLanguage", "system")
         private set
+    /**
+     * Reading pace measured by the last rehearsal (syllables/min for Korean,
+     * words/min for English); 0 until measured. Drives the editor's estimate.
+     */
+    var paceKo: Double by pref("paceKo", 0.0)
+    var paceEn: Double by pref("paceEn", 0.0)
     // Portrait-mode script box: width fraction and top/bottom margins.
     var portraitWidthFrac: Double by pref("portraitWidthFrac", 1.0)
     var portraitTopFrac: Double by pref("portraitTopFrac", 0.0)

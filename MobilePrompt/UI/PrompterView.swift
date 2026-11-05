@@ -107,6 +107,9 @@ struct PrompterView: View {
                 if vm.capture.isRecording {
                     recordingBadge
                 }
+                if vm.rehearsalActive {
+                    rehearsalBadge
+                }
                 if vm.capture.cameraState == .denied {
                     cameraDeniedBanner
                 }
@@ -122,6 +125,21 @@ struct PrompterView: View {
                     .contentTransition(.numericText(countsDown: true))
                     .animation(.snappy, value: c)
                     .allowsHitTesting(false)
+            }
+
+            if let toast = vm.toast {
+                VStack {
+                    Spacer()
+                    Text(toast)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.black.opacity(0.75), in: Capsule())
+                        .padding(.bottom, 120)
+                }
+                .transition(.opacity)
+                .allowsHitTesting(false)
             }
 
             if let msg = vm.errorMessage {
@@ -167,7 +185,19 @@ struct PrompterView: View {
         } message: {
             Text("프롬프터가 닫혀요. 지금까지 찍은 영상은 갤러리에 저장돼요.")
         }
+        .sheet(item: $vm.report, onDismiss: { if closeAfterSave { closeNow() } }) { report in
+            RehearsalResultView(report: report,
+                                onAgain: { vm.startRehearsal() },
+                                onRecord: { vm.recordTapped() })
+                .presentationDetents([.medium, .large])
+        }
         .alert("안내", isPresented: saveAlertBinding) {
+            if vm.takeReportAvailable {
+                Button("이번 테이크 결과") {
+                    vm.capture.saveMessage = nil
+                    vm.showTakeReport() // closes after the sheet, if asked to
+                }
+            }
             if !shareItems.isEmpty {
                 Button("영상·자막 공유") {
                     vm.capture.saveMessage = nil
@@ -250,6 +280,24 @@ struct PrompterView: View {
             .background(.black.opacity(0.5), in: Capsule())
             .overlay(Capsule().strokeBorder(.white.opacity(0.2), lineWidth: 1))
         }
+    }
+
+    private var rehearsalBadge: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "waveform")
+                .font(.system(size: 12))
+                .foregroundStyle(.cyan)
+                .symbolEffect(.variableColor.iterative, options: .repeating)
+            Text("연습 중 \(timeString(vm.rehearsalSeconds))")
+                .font(.system(.footnote, design: .monospaced))
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .background(.cyan.opacity(0.22), in: Capsule())
+        .overlay(Capsule().strokeBorder(.cyan.opacity(0.6), lineWidth: 1))
+        .transition(.opacity.combined(with: .scale))
     }
 
     private var isDemoBackdrop: Bool {
@@ -381,12 +429,12 @@ struct PrompterView: View {
                         }
                     }
                 }
-                .disabled(!vm.capture.cameraAvailable)
-                .opacity(vm.capture.cameraAvailable ? 1 : 0.35)
+                .disabled(!vm.capture.cameraAvailable || vm.rehearsalActive)
+                .opacity(vm.capture.cameraAvailable && !vm.rehearsalActive ? 1 : 0.35)
 
                 Spacer()
 
-                // pause (auto mode) / recording timer
+                // pause (auto mode) / rehearsal (voice mode)
                 if !settings.voiceMode {
                     Button {
                         vm.togglePause()
@@ -397,7 +445,17 @@ struct PrompterView: View {
                             .background(.black.opacity(0.4), in: Circle())
                     }
                 } else {
-                    Color.clear.frame(width: 52, height: 52)
+                    Button {
+                        if vm.rehearsalActive { vm.finishRehearsal() } else { vm.startRehearsal() }
+                    } label: {
+                        Image(systemName: vm.rehearsalActive ? "stop.fill" : "text.book.closed.fill")
+                            .font(.system(size: 19))
+                            .frame(width: 52, height: 52)
+                            .background(vm.rehearsalActive ? .cyan.opacity(0.5) : .black.opacity(0.4), in: Circle())
+                    }
+                    .accessibilityLabel(Text(vm.rehearsalActive ? "끝내기" : "연습"))
+                    .disabled(vm.capture.isRecording || vm.countdown != nil)
+                    .opacity(vm.capture.isRecording || vm.countdown != nil ? 0.35 : 1)
                 }
             }
             .foregroundStyle(.white)

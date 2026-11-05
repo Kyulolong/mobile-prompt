@@ -7,18 +7,9 @@ class WordTime(val token: Int, val t: Double)
  * Subtitle generation from the alignment trail (port of PrompterViewModel.finishSRT).
  * Returns null when there is nothing usable.
  */
-fun buildSrt(tokens: List<DisplayToken>, recWordTimes: List<WordTime>, recStart: Double): String? {
-    if (tokens.isEmpty() || recWordTimes.isEmpty()) return null
-    // Earliest time the cursor reached (at least) each token.
-    val tokenTime = arrayOfNulls<Double>(tokens.size)
-    var filled = -1
-    for (entry in recWordTimes) {
-        if (entry.token <= filled) continue
-        for (j in (filled + 1)..minOf(entry.token, tokens.size - 1)) {
-            if (tokenTime[j] == null) tokenTime[j] = entry.t
-        }
-        filled = maxOf(filled, entry.token)
-    }
+fun buildSrt(tokens: List<DisplayToken>, trail: List<WordTime>, recStart: Double): String? {
+    if (tokens.isEmpty() || trail.isEmpty()) return null
+    val tokenTime = earliestTimes(tokens, trail)
 
     class Cue(var start: Double, var end: Double, val text: String)
     val cues = ArrayList<Cue>()
@@ -68,4 +59,21 @@ fun buildSrt(tokens: List<DisplayToken>, recWordTimes: List<WordTime>, recStart:
             .append(c.text).append("\n\n")
     }
     return sb.toString()
+}
+
+/**
+ * Earliest time the cursor reached (at least) each token; null where it never
+ * got that far. Shared with RehearsalStats.
+ */
+fun earliestTimes(tokens: List<DisplayToken>, trail: List<WordTime>): Array<Double?> {
+    val tokenTime = arrayOfNulls<Double>(tokens.size)
+    var filled = -1
+    for (entry in trail) {
+        if (entry.token <= filled) continue
+        for (j in (filled + 1)..minOf(entry.token, tokens.size - 1)) {
+            if (tokenTime[j] == null) tokenTime[j] = entry.t
+        }
+        filled = maxOf(filled, entry.token)
+    }
+    return tokenTime
 }

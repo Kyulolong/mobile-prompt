@@ -36,11 +36,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.AlertDialog
@@ -224,6 +227,7 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
         Column(Modifier.fillMaxSize().safeDrawingPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             TopBar(vm, settings, onClose = { requestClose() }, onSettings = { showSettings = true })
             AnimatedVisibility(visible = vm.capture.isRecording) { RecordingBadge(vm.capture.recordingSeconds) }
+            AnimatedVisibility(visible = vm.rehearsalActive) { RehearsalBadge(vm.rehearsalSeconds) }
             Spacer(Modifier.weight(1f))
             BottomBar(vm, settings)
         }
@@ -248,6 +252,18 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                 onAutoScroll = { settings.voiceMode = false },
             )
         }
+        vm.toast?.let { msg ->
+            Text(
+                msg,
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 130.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                color = Color.White, fontWeight = FontWeight.Medium,
+            )
+        }
         vm.errorMessage?.let { msg ->
             Text(
                 msg, Modifier.align(Alignment.Center).padding(24.dp),
@@ -258,6 +274,18 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
 
     if (showSettings) {
         SettingsSheet(settings = settings, compact = true, onDismiss = { showSettings = false })
+    }
+
+    vm.report?.let { report ->
+        RehearsalResultSheet(
+            report = report,
+            onAgain = { vm.startRehearsal() },
+            onRecord = { vm.recordTapped() },
+            onDismiss = {
+                vm.report = null
+                if (closeAfterSave) close()
+            },
+        )
     }
 
     if (confirmClose) {
@@ -293,6 +321,12 @@ fun PrompterScreen(script: String, settings: AppSettings, returnUrl: String? = n
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(msg)
                     Spacer(Modifier.height(6.dp))
+                    if (vm.takeReportAvailable) {
+                        TextButton(onClick = {
+                            vm.capture.saveMessage = null
+                            vm.showTakeReport() // closes after the sheet, if asked to
+                        }) { Text(stringResource(R.string.take_report)) }
+                    }
                     if (shareIntent != null) {
                         TextButton(onClick = {
                             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video_srt)))
@@ -454,6 +488,26 @@ private fun RecordingBadge(seconds: Int) {
 }
 
 @Composable
+private fun RehearsalBadge(seconds: Int) {
+    val cyan = Color(0xFF32ADE6)
+    Row(
+        Modifier
+            .padding(start = 16.dp)
+            .clip(CircleShape)
+            .background(cyan.copy(alpha = 0.22f))
+            .border(1.dp, cyan.copy(alpha = 0.6f), CircleShape)
+            .padding(horizontal = 13.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Icon(Icons.Filled.GraphicEq, contentDescription = null, Modifier.size(12.dp), tint = cyan)
+        Text(
+            stringResource(R.string.rehearsing, String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)),
+            color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+@Composable
 private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (!settings.voiceMode) {
@@ -495,7 +549,19 @@ private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
                     )
                 }
             } else {
-                Spacer(Modifier.size(52.dp))
+                val busy = vm.capture.isRecording || vm.countdown != null
+                Box(Modifier.alpha(if (busy) 0.35f else 1f)) {
+                    RoundButton(
+                        size = 52.dp, enabled = !busy,
+                        onClick = { if (vm.rehearsalActive) vm.finishRehearsal() else vm.startRehearsal() },
+                    ) {
+                        Icon(
+                            if (vm.rehearsalActive) Icons.Filled.Stop else Icons.Filled.School,
+                            contentDescription = stringResource(if (vm.rehearsalActive) R.string.finish else R.string.rehearse),
+                            tint = Color.White,
+                        )
+                    }
+                }
             }
         }
     }
@@ -505,7 +571,7 @@ private fun BottomBar(vm: PrompterViewModel, settings: AppSettings) {
 @Composable
 private fun RecordButton(vm: PrompterViewModel) {
     val recording = vm.capture.isRecording
-    val enabled = vm.capture.canRecord
+    val enabled = vm.capture.canRecord && !vm.rehearsalActive
     val inner by animateDpAsState(if (recording) 30.dp else 62.dp, label = "rec")
     val corner by animateDpAsState(if (recording) 6.dp else 31.dp, label = "corner")
     val label = stringResource(if (recording) R.string.stop_recording else R.string.record)

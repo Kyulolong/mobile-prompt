@@ -92,4 +92,27 @@
     <string name="markup_note_title">Note</string>
     <string name="markup_note_body">Text in square brackets is dimmed and never spoken. Use it for pauses and notes to yourself.</string>
     <string name="markup_footer">Markup never appears in recorded subtitles (SRT).</string>
+    <!-- Rehearsal -->
+    <string name="rehearse">Rehearse</string>
+    <string name="rehearsing">Rehearsing %1$s</string>
+    <string name="finish">Finish</string>
+    <string name="rehearsal_results">Rehearsal Results</string>
+    <string name="take_results">Take Results</string>
+    <string name="total_time">Total Time</string>
+    <string name="pace">Pace</string>
+    <string name="pace_syl">%1$s syl/min</string>
+    <string name="pace_wpm">%1$s wpm</string>
+    <string name="pauses">Pauses</string>
+    <string name="pauses_value">%1$s× · %2$s s</string>
+    <string name="stuck_spots">Stuck Spots</string>
+    <string name="stuck_sentences">Stuck Sentences</string>
+    <string name="stuck_none">No stuck spots — nicely read</string>
+    <string name="reason_pause">Paused %1$s s</string>
+    <string name="reason_reread">Re-read</string>
+    <string name="reason_lost">Lost</string>
+    <string name="reason_slow">Slow</string>
+    <string name="rehearse_again">Rehearse Again</string>
+    <string name="go_record">Go Record</string>
+    <string name="take_report">This Take\'s Results</string>
+    <string name="nothing_read">Nothing was read yet</string>
 </resources>

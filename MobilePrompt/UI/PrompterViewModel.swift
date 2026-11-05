@@ -60,14 +60,21 @@ final class PrompterViewModel: ObservableObject {
                 guard let self else { return }
                 if recording {
                     if let old = self.srtFileURL { try? FileManager.default.removeItem(at: old) }
-                    self.recWordTimes = []
                     self.srtFileURL = nil
+                    self.takeReportAvailable = false
+                    self.recordingTrailStart = self.trail.count
+                    self.recordingEventsStart = self.events.count
                     // Only a take read in voice mode has a real alignment trail;
                     // word taps during an auto-scroll take must not yield a
                     // partial SRT.
                     self.srtEligible = self.voiceMode
-                } else if self.srtEligible, !self.recWordTimes.isEmpty {
-                    self.finishSRT()
+                } else {
+                    let slice = Array(self.trail[min(self.recordingTrailStart, self.trail.count)...])
+                    self.lastTakeTrail = slice
+                    self.lastTakeEvents = Array(self.events[min(self.recordingEventsStart, self.events.count)...])
+                    self.lastTakeSeconds = Double(self.capture.recordingSeconds)
+                    self.takeReportAvailable = self.srtEligible && slice.count >= 2
+                    if self.srtEligible, !slice.isEmpty { self.finishSRT(trail: slice) }
                 }
             }
             .store(in: &cancellables)
@@ -75,17 +82,27 @@ final class PrompterViewModel: ObservableObject {
 
     // MARK: subtitles (SRT)
 
-    /// (token, host-clock time) for every accepted cursor move while recording.
-    private var recWordTimes: [WordTime] = []
+    /// (token, host-clock time) for every accepted cursor move in voice mode —
+    /// the whole session. Recording and rehearsal each use a slice of it.
+    private var trail: [WordTime] = []
+    /// Trouble the aligner noticed (lost, re-reads), same clock as `trail`.
+    private var events: [RehearsalEvent] = []
+    private var recordingTrailStart = 0
+    private var recordingEventsStart = 0
+    private var lastTakeTrail: [WordTime] = []
+    private var lastTakeEvents: [RehearsalEvent] = []
+    private var lastTakeSeconds = 0.0
+    /// The last take was read in voice mode long enough to have a summary.
+    @Published private(set) var takeReportAvailable = false
     /// Whether the running take started in voice mode (see the recording sink).
     private var srtEligible = false
     /// Generated after a voice-mode recording ends; drives the share button.
     @Published var srtFileURL: URL?
 
-    private func finishSRT() {
+    private func finishSRT(trail: [WordTime]) {
         guard let recStart = capture.lastRecordingStart,
               let name = capture.lastRecordingName,
-              let srt = Srt.build(tokens: tokens, trail: recWordTimes, recStart: recStart) else { return }
+              let srt = Srt.build(tokens: tokens, trail: trail, recStart: recStart) else { return }
         // Same stem as the movie (VoicePrompter-yyyyMMdd-HHmmss) so the pair
         // stays together in the share sheet and on the receiving side.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).srt")
@@ -99,12 +116,93 @@ final class PrompterViewModel: ObservableObject {
     private var currentHighlight = -1
     private var speakingTimer: Timer?
     private var voiceMode = true
+    private var settings: AppSettings?
+
+    // MARK: rehearsal
+
+    @Published private(set) var rehearsalActive = false
+    @Published private(set) var rehearsalSeconds = 0
+    /// Set when a rehearsal or take summary is ready; drives the result sheet.
+    @Published var report: RehearsalReport?
+    /// Short transient message (e.g. "nothing was read yet").
+    @Published var toast: String?
+    private var rehearsalTimer: Timer?
+    private var rehearsalFinishTimer: Timer?
+    private var toastTimer: Timer?
+    /// Last token the reader can actually say — reaching it (then 1.5 s of
+    /// silence) ends a rehearsal by itself.
+    private var lastSpokenToken = -1
+
+    /// Read the script in voice mode without the camera rolling, then get a
+    /// summary: time, pace, pauses, and the sentences that caused trouble.
+    func startRehearsal() {
+        guard voiceMode, !capture.isRecording, countdown == nil, !tokens.isEmpty else { return }
+        trail = []
+        events = []
+        engine?.reset(startToken: 0)
+        pendingJumpTarget = nil
+        lost = false
+        scroll.jump(to: 0)
+        highlight(0)
+        rehearsalActive = true
+        rehearsalSeconds = 0
+        rehearsalTimer?.invalidate()
+        rehearsalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.rehearsalSeconds += 1 }
+        }
+    }
+
+    func finishRehearsal() {
+        guard rehearsalActive else { return }
+        rehearsalActive = false
+        rehearsalTimer?.invalidate()
+        rehearsalTimer = nil
+        rehearsalFinishTimer?.invalidate()
+        rehearsalFinishTimer = nil
+        guard let r = RehearsalStats.compute(tokens: tokens, trail: trail, events: events,
+                                             lang: activeLang, kind: .rehearsal) else {
+            showToast(AppSettings.tr("읽은 내용이 없어요"))
+            return
+        }
+        // A real read-through teaches the editor the reader's own pace.
+        if trail.count >= 20, let settings {
+            if r.paceUnit == .wordsPerMinute { settings.paceEn = r.pace } else { settings.paceKo = r.pace }
+        }
+        report = r
+    }
+
+    /// Summary of the take that just finished (voice mode only).
+    func showTakeReport() {
+        guard takeReportAvailable,
+              let r = RehearsalStats.compute(tokens: tokens, trail: lastTakeTrail, events: lastTakeEvents,
+                                             lang: activeLang, kind: .take, duration: lastTakeSeconds) else { return }
+        report = r
+    }
+
+    private func armRehearsalFinish(token: Int) {
+        guard rehearsalActive else { return }
+        rehearsalFinishTimer?.invalidate()
+        rehearsalFinishTimer = nil
+        guard token >= lastSpokenToken else { return }
+        rehearsalFinishTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.finishRehearsal() }
+        }
+    }
+
+    private func showToast(_ message: String) {
+        toast = message
+        toastTimer?.invalidate()
+        toastTimer = Timer.scheduledTimer(withTimeInterval: 2.2, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.toast = nil }
+        }
+    }
 
     /// Language actually driving recognition/alignment this session.
     private(set) var activeLang = "ko"
     private var scriptText = ""
 
     func start(script: String, settings: AppSettings) async {
+        self.settings = settings
         voiceMode = settings.voiceMode
         scriptText = script
         highlightUIColor = Self.highlightColor(for: settings.highlightStyle)
@@ -131,6 +229,11 @@ final class PrompterViewModel: ObservableObject {
         tokens = ScriptMarkup.apply(engineTokens, original: script)
             ?? engine.load(script: script, config: alignOverrides, lang: chosen)
         computeLangZones(base: chosen)
+        lastSpokenToken = tokens.lastIndex { t in
+            t.kind != .note && t.display.unicodeScalars.contains { s in
+                (0xAC00...0xD7A3).contains(s.value) || CharacterSet.alphanumerics.contains(s)
+            }
+        } ?? -1
         if tokens.isEmpty {
             errorMessage = AppSettings.tr("대본이 비어 있어요")
             return
@@ -208,6 +311,9 @@ final class PrompterViewModel: ObservableObject {
 
     func stopAll() {
         cancelCountdown()
+        rehearsalActive = false
+        rehearsalTimer?.invalidate()
+        rehearsalFinishTimer?.invalidate()
         langWatchdog?.invalidate()
         langWatchdog = nil
         speech.stop()
@@ -257,6 +363,7 @@ final class PrompterViewModel: ObservableObject {
 
     /// Record button: idle → countdown → recording. Tapping mid-countdown cancels.
     func recordTapped() {
+        guard !rehearsalActive else { return }
         if capture.isRecording {
             capture.stopRecording()
         } else if countdown != nil {
@@ -285,12 +392,17 @@ final class PrompterViewModel: ObservableObject {
 
     func tapped(characterIndex: Int) {
         guard let idx = tokenRanges.lastIndex(where: { $0.location <= characterIndex }) else { return }
+        let now = CACurrentMediaTime()
+        if voiceMode {
+            if idx < currentHighlight - 1 { events.append(.reread(from: currentHighlight, to: idx, t: now)) }
+            trail.append(WordTime(token: idx, t: now))
+        }
         engine?.seek(token: idx)
-        scroll.update(confirmedToken: idx, now: CACurrentMediaTime())
+        scroll.update(confirmedToken: idx, now: now)
         scroll.jump(to: Double(idx))
         highlight(idx)
         lost = false
-        if capture.isRecording, voiceMode { recWordTimes.append(WordTime(token: idx, t: CACurrentMediaTime())) }
+        armRehearsalFinish(token: idx)
         lastLangSwitch = 0 // manual jump may cross a language zone — allow an immediate switch
         maybeSwitchSTT(for: idx)
     }
@@ -438,7 +550,9 @@ final class PrompterViewModel: ObservableObject {
         if apply {
             if r.moved {
                 lastProgressAt = now
-                if capture.isRecording { recWordTimes.append(WordTime(token: r.token, t: now)) }
+                trail.append(WordTime(token: r.token, t: now))
+                if r.token <= current - 2 { events.append(.reread(from: current, to: r.token, t: now)) }
+                armRehearsalFinish(token: r.token)
             }
             highlight(r.token)
             scroll.update(confirmedToken: r.token, tokensPerSec: r.tokensPerSec,
@@ -447,7 +561,10 @@ final class PrompterViewModel: ObservableObject {
             // Hold position (gentle creep only) until the jump is confirmed.
             scroll.update(speaking: true, lost: r.lost, now: now)
         }
-        if lost != r.lost { lost = r.lost }
+        if lost != r.lost {
+            lost = r.lost
+            if r.lost { events.append(.lost(token: r.token, t: now)) }
+        }
         maybeSwitchSTT(for: r.token)
 
         // Speech-activity gate: silence for a beat freezes the creep.

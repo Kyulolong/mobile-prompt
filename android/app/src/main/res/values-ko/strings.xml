@@ -92,4 +92,27 @@
     <string name="markup_note_title">메모</string>
     <string name="markup_note_body">대괄호 안은 흐리게 보이고, 읽지 않아요. 쉬는 자리나 메모에 쓰세요.</string>
     <string name="markup_footer">녹화 자막(SRT)에는 표시 기호가 들어가지 않아요.</string>
+    <!-- Rehearsal -->
+    <string name="rehearse">연습</string>
+    <string name="rehearsing">연습 중 %1$s</string>
+    <string name="finish">끝내기</string>
+    <string name="rehearsal_results">연습 결과</string>
+    <string name="take_results">테이크 결과</string>
+    <string name="total_time">총 시간</string>
+    <string name="pace">읽기 속도</string>
+    <string name="pace_syl">분당 %1$s음절</string>
+    <string name="pace_wpm">%1$s wpm</string>
+    <string name="pauses">멈춤</string>
+    <string name="pauses_value">%1$s회 · %2$s초</string>
+    <string name="stuck_spots">막힌 곳</string>
+    <string name="stuck_sentences">막힌 문장</string>
+    <string name="stuck_none">막힌 곳 없이 잘 읽었어요</string>
+    <string name="reason_pause">멈춤 %1$s초</string>
+    <string name="reason_reread">다시 읽음</string>
+    <string name="reason_lost">놓침</string>
+    <string name="reason_slow">느림</string>
+    <string name="rehearse_again">다시 연습</string>
+    <string name="go_record">녹화하러 가기</string>
+    <string name="take_report">이번 테이크 결과</string>
+    <string name="nothing_read">읽은 내용이 없어요</string>
 </resources>

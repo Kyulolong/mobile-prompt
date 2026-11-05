@@ -58,6 +58,10 @@ final class AppSettings: ObservableObject {
             }
         }
     }
+    /// Reading pace measured by the last rehearsal (syllables/min for Korean,
+    /// words/min for English); 0 until measured. Drives the editor's estimate.
+    @Published var paceKo: Double { didSet { save(paceKo, "paceKo") } }
+    @Published var paceEn: Double { didSet { save(paceEn, "paceEn") } }
     // Portrait-mode script box: width fraction and top/bottom margins.
     @Published var portraitWidthFrac: Double { didSet { save(portraitWidthFrac, "portraitWidthFrac") } }
     @Published var portraitTopFrac: Double { didSet { save(portraitTopFrac, "portraitTopFrac") } }
@@ -74,6 +78,8 @@ final class AppSettings: ObservableObject {
         voiceMode = d.object(forKey: "voiceMode") as? Bool ?? true
         highlightStyle = d.string(forKey: "highlightStyle") ?? "green"
         appLanguage = d.string(forKey: "appLanguage") ?? "system"
+        paceKo = d.object(forKey: "paceKo") as? Double ?? 0
+        paceEn = d.object(forKey: "paceEn") as? Double ?? 0
         portraitWidthFrac = d.object(forKey: "portraitWidthFrac") as? Double ?? 1.0
         portraitTopFrac = d.object(forKey: "portraitTopFrac") as? Double ?? 0
         portraitBottomFrac = d.object(forKey: "portraitBottomFrac") as? Double ?? 0

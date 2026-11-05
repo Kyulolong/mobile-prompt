@@ -15,15 +15,7 @@ enum Srt {
     /// Returns nil when nothing usable was captured.
     static func build(tokens: [DisplayToken], trail: [WordTime], recStart: Double) -> String? {
         guard !tokens.isEmpty, !trail.isEmpty else { return nil }
-        // Earliest time the cursor reached (at least) each token.
-        var tokenTime = [Double?](repeating: nil, count: tokens.count)
-        var filled = -1
-        for entry in trail where entry.token > filled {
-            for j in (filled + 1)...min(entry.token, tokens.count - 1) where tokenTime[j] == nil {
-                tokenTime[j] = entry.t
-            }
-            filled = max(filled, entry.token)
-        }
+        let tokenTime = earliestTimes(tokens: tokens, trail: trail)
 
         var cues: [(start: Double, end: Double, text: String)] = []
         var rangeStart = 0
@@ -69,5 +61,19 @@ enum Srt {
             srt += "\(i + 1)\n\(stamp(c.start)) --> \(stamp(c.end))\n\(c.text)\n\n"
         }
         return srt
+    }
+
+    /// Earliest time the cursor reached (at least) each token; nil where it
+    /// never got that far. Shared with RehearsalStats.
+    static func earliestTimes(tokens: [DisplayToken], trail: [WordTime]) -> [Double?] {
+        var tokenTime = [Double?](repeating: nil, count: tokens.count)
+        var filled = -1
+        for entry in trail where entry.token > filled {
+            for j in (filled + 1)...min(entry.token, tokens.count - 1) where tokenTime[j] == nil {
+                tokenTime[j] = entry.t
+            }
+            filled = max(filled, entry.token)
+        }
+        return tokenTime
     }
 }
