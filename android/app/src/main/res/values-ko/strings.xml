@@ -85,4 +85,11 @@
     <string name="section_perplz">퍼플즈</string>
     <string name="perplz_make_script">퍼플즈 알아보기</string>
     <string name="perplz_footer">팀 프로젝트를 기록하고 포트폴리오로 만드는 퍼플즈가 만든 앱이에요.</string>
+    <!-- Script markup -->
+    <string name="markup_help_title">대본 표시 문법</string>
+    <string name="markup_bold_title">굵게</string>
+    <string name="markup_bold_body">별표 두 개로 감싸면 굵게 보여요. 읽는 단어예요.</string>
+    <string name="markup_note_title">메모</string>
+    <string name="markup_note_body">대괄호 안은 흐리게 보이고, 읽지 않아요. 쉬는 자리나 메모에 쓰세요.</string>
+    <string name="markup_footer">녹화 자막(SRT)에는 표시 기호가 들어가지 않아요.</string>
 </resources>

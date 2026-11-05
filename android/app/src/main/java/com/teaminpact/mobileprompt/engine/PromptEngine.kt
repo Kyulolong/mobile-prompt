@@ -1,7 +1,12 @@
 package com.teaminpact.mobileprompt.engine
 
-/** What the prompter renders: one entry per script token. */
-data class DisplayToken(val raw: String, val breakBefore: Boolean)
+/** What the prompter renders: one entry per script token. `display`/`kind` come from ScriptMarkup. */
+data class DisplayToken(
+    val raw: String,
+    val breakBefore: Boolean,
+    val display: String = raw,
+    val kind: TokenKind = TokenKind.PLAIN,
+)
 
 /** One alignment step's outcome, as the prompter consumes it. */
 class AlignUpdate(

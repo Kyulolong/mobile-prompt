@@ -85,4 +85,11 @@
     <string name="section_perplz">Perplz</string>
     <string name="perplz_make_script">About Perplz</string>
     <string name="perplz_footer">Made by Perplz, where teams record their projects and turn them into portfolios.</string>
+    <!-- Script markup -->
+    <string name="markup_help_title">Script Markup</string>
+    <string name="markup_bold_title">Bold</string>
+    <string name="markup_bold_body">Wrap words in double asterisks to show them bold. They are read aloud like any other word.</string>
+    <string name="markup_note_title">Note</string>
+    <string name="markup_note_body">Text in square brackets is dimmed and never spoken. Use it for pauses and notes to yourself.</string>
+    <string name="markup_footer">Markup never appears in recorded subtitles (SRT).</string>
 </resources>

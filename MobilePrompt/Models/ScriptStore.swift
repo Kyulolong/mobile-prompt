@@ -8,7 +8,8 @@ struct SavedScript: Identifiable, Codable, Equatable {
 
     /// Display title: first non-empty line, truncated.
     var title: String {
-        let line = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let line = text.split(separator: "\n")
+            .map { ScriptMarkup.stripMarkers(String($0)).trimmingCharacters(in: .whitespaces) }
             .first { !$0.isEmpty } ?? ""
         if line.isEmpty { return AppSettings.tr("새 대본") }
         return line.count > 28 ? String(line.prefix(28)) + "…" : line

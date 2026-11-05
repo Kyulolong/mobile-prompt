@@ -124,7 +124,12 @@ final class PrompterViewModel: ObservableObject {
         activeLang = chosen
         currentSTTLang = chosen
         speech.setLocale(chosen == "en" ? "en-US" : "ko-KR")
-        tokens = engine.load(script: script, config: alignOverrides, lang: chosen)
+        // Markup: the engine sees notes as blanks (same whitespace, same token
+        // count); the display gets bold/dim per token. If the two ever fail to
+        // line up, the script is shown plain rather than wrong.
+        let engineTokens = engine.load(script: ScriptMarkup.engineText(script), config: alignOverrides, lang: chosen)
+        tokens = ScriptMarkup.apply(engineTokens, original: script)
+            ?? engine.load(script: script, config: alignOverrides, lang: chosen)
         computeLangZones(base: chosen)
         if tokens.isEmpty {
             errorMessage = AppSettings.tr("대본이 비어 있어요")
@@ -338,7 +343,7 @@ final class PrompterViewModel: ObservableObject {
             runStart = nil
         }
         for (i, t) in tokens.enumerated() {
-            let lang = Self.tokenLang(t.raw)
+            let lang = t.kind == .note ? nil : Self.tokenLang(t.display) // notes are unspoken: neutral
             if lang == opposite {
                 if runStart == nil { runStart = i }
                 lastOppositeIdx = i
@@ -456,6 +461,13 @@ final class PrompterViewModel: ObservableObject {
 
     /// Current highlight color; nil = highlighting off. Set from settings.
     private var highlightUIColor: UIColor?
+    /// Notes (`[like this]`) are drawn dimmed.
+    static let noteColor = UIColor.white.withAlphaComponent(0.45)
+
+    /// A token's colour when it is not the highlighted one.
+    private func baseColor(_ idx: Int) -> UIColor {
+        idx < tokens.count && tokens[idx].kind == .note ? Self.noteColor : .white
+    }
 
     func setHighlightStyle(_ style: String) {
         highlightUIColor = Self.highlightColor(for: style)
@@ -463,7 +475,7 @@ final class PrompterViewModel: ObservableObject {
         let range = tokenRanges[currentHighlight]
         textView.performWithoutScrolling {
             textView.textStorage.addAttribute(.foregroundColor,
-                                              value: highlightUIColor ?? UIColor.white,
+                                              value: highlightUIColor ?? baseColor(currentHighlight),
                                               range: range)
         }
     }
@@ -488,7 +500,7 @@ final class PrompterViewModel: ObservableObject {
         textView.performWithoutScrolling {
             let storage = textView.textStorage
             if previous >= 0, previous < tokenRanges.count {
-                storage.addAttribute(.foregroundColor, value: UIColor.white, range: tokenRanges[previous])
+                storage.addAttribute(.foregroundColor, value: baseColor(previous), range: tokenRanges[previous])
             }
             storage.addAttribute(.foregroundColor, value: color, range: tokenRanges[idx])
         }

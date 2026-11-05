@@ -17,6 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -25,16 +27,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +59,7 @@ fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onSta
     val text = script?.text ?: ""
     val focus = LocalFocusManager.current
     val languageTag = LocalConfiguration.current.locales[0].toLanguageTag()
+    var showMarkupHelp by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -63,6 +73,11 @@ fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onSta
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showMarkupHelp = true }) {
+                        Icon(Icons.Outlined.Info, contentDescription = stringResource(R.string.markup_help_title))
                     }
                 },
             )
@@ -121,5 +136,49 @@ fun EditorScreen(scriptId: String, store: ScriptStore, onBack: () -> Unit, onSta
                 }
             }
         }
+    }
+
+    if (showMarkupHelp) {
+        MarkupHelpDialog(onDismiss = { showMarkupHelp = false })
+    }
+}
+
+/** The two bits of markup a script understands (see ScriptMarkup). */
+@Composable
+private fun MarkupHelpDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.markup_help_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                MarkupRow("**강조**", stringResource(R.string.markup_bold_title), stringResource(R.string.markup_bold_body))
+                MarkupRow("[쉬고]", stringResource(R.string.markup_note_title), stringResource(R.string.markup_note_body))
+                Text(
+                    stringResource(R.string.markup_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
+    )
+}
+
+@Composable
+private fun MarkupRow(code: String, title: String, body: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                code,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .padding(0.dp)
+                    .then(Modifier),
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(title, style = MaterialTheme.typography.titleSmall)
+        }
+        Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -16,7 +16,9 @@ import com.teaminpact.mobileprompt.engine.Clock
 import com.teaminpact.mobileprompt.engine.DisplayToken
 import com.teaminpact.mobileprompt.engine.EngineLang
 import com.teaminpact.mobileprompt.engine.PromptEngine
+import com.teaminpact.mobileprompt.engine.ScriptMarkup
 import com.teaminpact.mobileprompt.engine.ScrollModel
+import com.teaminpact.mobileprompt.engine.TokenKind
 import com.teaminpact.mobileprompt.engine.WordTime
 import com.teaminpact.mobileprompt.engine.buildSrt
 import com.teaminpact.mobileprompt.model.AppSettings
@@ -130,7 +132,11 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
         scriptLang = chosen
         currentSTTLang = chosen
         speech.setLanguage(chosen)
-        tokens = engine.load(script, alignOverrides, chosen)
+        // Markup: the engine sees notes as blanks (same whitespace, same token
+        // count); the display gets bold/dim per token. If the two ever fail to
+        // line up, the script is shown plain rather than wrong.
+        val engineTokens = engine.load(ScriptMarkup.engineText(script), alignOverrides, chosen)
+        tokens = ScriptMarkup.apply(engineTokens, script) ?: engine.load(script, alignOverrides, chosen)
         computeLangZones(chosen)
         if (tokens.isEmpty()) {
             errorMessage = getApplication<Application>().getString(R.string.script_empty)
@@ -312,7 +318,7 @@ class PrompterViewModel(app: Application) : AndroidViewModel(app) {
             runStart = null
         }
         for ((i, t) in tokens.withIndex()) {
-            val lang = tokenLang(t.raw)
+            val lang = if (t.kind == TokenKind.NOTE) null else tokenLang(t.display) // notes are unspoken: neutral
             if (lang == opposite) {
                 if (runStart == null) runStart = i
                 lastOppositeIdx = i

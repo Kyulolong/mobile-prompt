@@ -9,6 +9,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
+import android.text.style.TypefaceSpan
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -18,6 +19,7 @@ import android.widget.TextView
 import com.teaminpact.mobileprompt.engine.Clock
 import com.teaminpact.mobileprompt.engine.DisplayToken
 import com.teaminpact.mobileprompt.engine.ScrollSurface
+import com.teaminpact.mobileprompt.engine.TokenKind
 import kotlin.math.roundToInt
 
 /**
@@ -33,6 +35,7 @@ class PromptTextView(context: Context) : ScrollView(context), ScrollSurface {
     var onTap: ((Int) -> Unit)? = null
 
     private val textView = TextView(context)
+    private val heavy: Typeface = Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 800, false)
     /** Character range of each token inside the text. */
     var ranges: List<IntRange> = emptyList()
         private set
@@ -81,8 +84,14 @@ class PromptTextView(context: Context) : ScrollView(context), ScrollSurface {
         for ((i, t) in tokens.withIndex()) {
             if (i > 0) sb.append(if (t.breakBefore) "\n" else " ")
             val start = sb.length
-            sb.append(if (keepHangulWords) joinHangul(t.raw) else t.raw)
+            sb.append(if (keepHangulWords) joinHangul(t.display) else t.display)
             r.add(start until sb.length)
+            when (t.kind) {
+                TokenKind.EMPHASIS -> sb.setSpan(TypefaceSpan(heavy), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                // Set before any highlight span, so the highlight (added later) wins while it is there.
+                TokenKind.NOTE -> sb.setSpan(ForegroundColorSpan(NOTE_COLOR), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                TokenKind.PLAIN -> {}
+            }
             if (i + 1 < tokens.size && tokens[i + 1].breakBefore) {
                 // Paragraph spacing: extra room below the last line of a paragraph.
                 sb.setSpan(ParagraphBottomSpan(paraExtra), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -194,6 +203,11 @@ class PromptTextView(context: Context) : ScrollView(context), ScrollSurface {
     /** Finger down, or a fling still moving the view in the last ~0.12 s. */
     override val isUserDragging: Boolean
         get() = touching || Clock.now() - lastUserScrollAt < 0.12
+
+    private companion object {
+        /** Notes (`[like this]`) are drawn dimmed. */
+        const val NOTE_COLOR = 0x73FFFFFF.toInt()
+    }
 
     /**
      * Extra space below the last line of a paragraph (TextView has no

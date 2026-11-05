@@ -113,6 +113,7 @@ struct ScriptTextView: UIViewRepresentable {
             builtFontSize = parent.fontSize
 
             let font = UIFont.systemFont(ofSize: parent.fontSize, weight: .semibold)
+            let heavy = UIFont.systemFont(ofSize: parent.fontSize, weight: .heavy)
             let para = NSMutableParagraphStyle()
             para.lineSpacing = parent.fontSize * 0.4
             para.paragraphSpacing = parent.fontSize * 0.6
@@ -134,7 +135,13 @@ struct ScriptTextView: UIViewRepresentable {
                     text.append(NSAttributedString(string: t.breakBefore ? "\n" : " ", attributes: attrs))
                 }
                 let start = text.length
-                text.append(NSAttributedString(string: t.raw, attributes: attrs))
+                var tokenAttrs = attrs
+                switch t.kind {
+                case .emphasis: tokenAttrs[.font] = heavy
+                case .note: tokenAttrs[.foregroundColor] = PrompterViewModel.noteColor
+                case .plain: break
+                }
+                text.append(NSAttributedString(string: t.display, attributes: tokenAttrs))
                 ranges.append(NSRange(location: start, length: text.length - start))
             }
             tv.textStorage.setAttributedString(text)

@@ -29,8 +29,10 @@ enum Srt {
         var rangeStart = 0
         var charCount = 0
         for i in 0..<tokens.count {
-            let raw = tokens[i].raw
-            charCount += raw.count + 1
+            // Cue text is the display text; notes are never spoken, so they
+            // neither appear in cues nor count toward the line budget.
+            let raw = tokens[i].display
+            if tokens[i].kind != .note { charCount += raw.count + 1 }
             let endsSentence = raw.hasSuffix(".") || raw.hasSuffix("!") || raw.hasSuffix("?") || raw.hasSuffix("…")
             let nextBreaks = i + 1 < tokens.count ? tokens[i + 1].breakBefore : true
             // Keep cues to 1–2 subtitle lines: hard budget ~26 chars, and take
@@ -44,7 +46,8 @@ enum Srt {
             guard let first = times.first, let last = times.last else { continue }
             let start = max(0, first - recStart - 0.25)
             let end = max(last - recStart + 0.8, start + 0.8)
-            let text = range.map { tokens[$0].raw }.joined(separator: " ")
+            let text = range.filter { tokens[$0].kind != .note }.map { tokens[$0].display }.joined(separator: " ")
+            guard !text.isEmpty else { continue }
             cues.append((start, end, text))
         }
         guard !cues.isEmpty else { return nil }

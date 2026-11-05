@@ -74,7 +74,13 @@
     "멈추고 닫기" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Stop and close" } } } },
     "계속 녹화" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Keep recording" } } } },
     "카메라 권한이 필요해요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Camera permission needed" } } } },
-    "설정 > 보이스 프롬프터에서 카메라를 켜 주세요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Allow the camera in Settings > Voice Prompter" } } } }
+    "설정 > 보이스 프롬프터에서 카메라를 켜 주세요" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Allow the camera in Settings > Voice Prompter" } } } },
+    "대본 표시 문법" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Script Markup" } } } },
+    "굵게" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Bold" } } } },
+    "메모" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Note" } } } },
+    "별표 두 개로 감싸면 굵게 보여요. 읽는 단어예요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Wrap words in double asterisks to show them bold. They are read aloud like any other word." } } } },
+    "대괄호 안은 흐리게 보이고, 읽지 않아요. 쉬는 자리나 메모에 쓰세요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Text in square brackets is dimmed and never spoken. Use it for pauses and notes to yourself." } } } },
+    "녹화 자막(SRT)에는 표시 기호가 들어가지 않아요." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Markup never appears in recorded subtitles (SRT)." } } } }
   },
   "version" : "1.0"
 }

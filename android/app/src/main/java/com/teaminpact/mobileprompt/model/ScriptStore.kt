@@ -2,6 +2,7 @@ package com.teaminpact.mobileprompt.model
 
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
+import com.teaminpact.mobileprompt.engine.ScriptMarkup
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -15,7 +16,7 @@ data class SavedScript(
     /** Display title: first non-empty line, truncated. Empty when the script is blank. */
     val titleLine: String
         get() {
-            val line = text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: ""
+            val line = text.lineSequence().map { ScriptMarkup.stripMarkers(it).trim() }.firstOrNull { it.isNotEmpty() } ?: ""
             return if (line.length > 28) line.take(28) + "…" else line
         }
 }

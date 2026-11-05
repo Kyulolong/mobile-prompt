@@ -25,8 +25,10 @@ fun buildSrt(tokens: List<DisplayToken>, recWordTimes: List<WordTime>, recStart:
     var rangeStart = 0
     var charCount = 0
     for (i in tokens.indices) {
-        val raw = tokens[i].raw
-        charCount += raw.length + 1
+        // Cue text is the display text; notes are never spoken, so they neither
+        // appear in cues nor count toward the line budget.
+        val raw = tokens[i].display
+        if (tokens[i].kind != TokenKind.NOTE) charCount += raw.length + 1
         val endsSentence = raw.endsWith(".") || raw.endsWith("!") || raw.endsWith("?") || raw.endsWith("…")
         val nextBreaks = if (i + 1 < tokens.size) tokens[i + 1].breakBefore else true
         // Keep cues to 1–2 subtitle lines: hard budget ~26 chars, and take a
@@ -42,7 +44,9 @@ fun buildSrt(tokens: List<DisplayToken>, recWordTimes: List<WordTime>, recStart:
         val last = times.last()
         val start = maxOf(0.0, first - recStart - 0.25)
         val end = maxOf(last - recStart + 0.8, start + 0.8)
-        cues.add(Cue(start, end, range.joinToString(" ") { tokens[it].raw }))
+        val text = range.filter { tokens[it].kind != TokenKind.NOTE }.joinToString(" ") { tokens[it].display }
+        if (text.isEmpty()) continue
+        cues.add(Cue(start, end, text))
     }
     if (cues.isEmpty()) return null
 

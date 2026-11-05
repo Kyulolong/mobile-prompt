@@ -4,6 +4,23 @@ import JavaScriptCore
 struct DisplayToken: Decodable, Equatable {
     let raw: String
     let breakBefore: Bool
+    /// What the prompter draws (markup stripped); see ScriptMarkup.
+    var display: String
+    var kind: TokenKind
+
+    init(raw: String, breakBefore: Bool, display: String? = nil, kind: TokenKind = .plain) {
+        self.raw = raw
+        self.breakBefore = breakBefore
+        self.display = display ?? raw
+        self.kind = kind
+    }
+
+    private enum CodingKeys: String, CodingKey { case raw, breakBefore }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(raw: try c.decode(String.self, forKey: .raw), breakBefore: try c.decode(Bool.self, forKey: .breakBefore))
+    }
 }
 
 struct AlignUpdate: Decodable {
